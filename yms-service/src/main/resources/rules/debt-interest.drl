@@ -1,0 +1,18 @@
+package rules
+
+import com.yms.yms.domain.finance.service.InterestCalculation;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+
+rule "Calculate simple daily overdue interest"
+    salience 10
+    when
+        $calculation : InterestCalculation(
+            $principal : outstandingPrincipal,
+            $rate : ratePerDayPercent
+        )
+    then
+        $calculation.setAmount(
+            $principal.multiply($rate).divide(new BigDecimal("100"), 4, RoundingMode.HALF_UP)
+        );
+end

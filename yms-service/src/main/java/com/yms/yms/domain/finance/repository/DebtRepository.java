@@ -12,6 +12,5 @@ public interface DebtRepository extends JpaRepository<Debt, UUID> {
     List<Debt> findByPartnerIdOrderByDueDateAsc(UUID partnerId);
     List<Debt> findByStatusOrderByDueDateAsc(String status);
     List<Debt> findByPartnerIdAndStatusOrderByDueDateAsc(UUID partnerId, String status);
-    List<Debt> findByStatusOrderByDueDateAsc(String status);
     List<Debt> findByPartnerIdIn(List<UUID> partnerIds);
 }

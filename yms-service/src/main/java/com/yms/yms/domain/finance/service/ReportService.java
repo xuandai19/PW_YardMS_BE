@@ -5,6 +5,7 @@ import com.itextpdf.kernel.pdf.PdfWriter;
 import com.itextpdf.layout.Document;
 import com.itextpdf.layout.element.Paragraph;
 import com.yms.common.exception.BusinessException;
+import jakarta.transaction.Transactional;
 import com.yms.yms.domain.finance.entity.Debt;
 import com.yms.yms.domain.finance.entity.Invoice;
 import com.yms.yms.domain.finance.repository.DebtRepository;

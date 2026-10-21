@@ -7,6 +7,7 @@ import com.yms.yms.domain.service.service.ServiceCatalogService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -65,6 +66,7 @@ public class ServiceController {
         entity.setServiceType(request.serviceType());
         entity.setUnit(request.unit() != null ? request.unit() : "HOUR");
         entity.setHourlyRate(request.hourlyRate());
+        entity.setExpectedDurationMinutes(request.expectedDurationMinutes() != null ? request.expectedDurationMinutes() : 60);
         entity.setActive(request.active() == null || request.active());
         return entity;
     }
@@ -72,9 +74,13 @@ public class ServiceController {
     public record ServiceRequest(
             @NotBlank String code,
             @NotBlank String name,
-            @NotBlank String serviceType,
+            @NotBlank
+            @Pattern(regexp = "YARD|HANDLING|MAINTENANCE|FUEL|OTHER",
+                    message = "serviceType must be YARD, HANDLING, MAINTENANCE, FUEL or OTHER")
+            String serviceType,
             String unit,
             @NotNull BigDecimal hourlyRate,
+            @jakarta.validation.constraints.Positive Integer expectedDurationMinutes,
             Boolean active
     ) {
     }

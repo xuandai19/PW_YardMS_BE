@@ -10,4 +10,7 @@ public interface ServiceOrderRepository extends JpaRepository<ServiceOrder, UUID
     List<ServiceOrder> findByVehicleIdOrderByCreatedAtDesc(UUID vehicleId);
     List<ServiceOrder> findByStatusOrderByCreatedAtDesc(String status);
     boolean existsByTripIdAndServiceId(UUID tripId, UUID serviceId);
+    java.util.Optional<ServiceOrder> findByTripIdAndServiceId(UUID tripId, UUID serviceId);
+    List<ServiceOrder> findByTripId(UUID tripId);
+    long countByYardIdAndServiceIdAndStatus(UUID yardId, UUID serviceId, String status);
 }

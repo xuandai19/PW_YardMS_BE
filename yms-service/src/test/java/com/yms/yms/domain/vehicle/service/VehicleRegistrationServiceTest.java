@@ -91,6 +91,6 @@ class VehicleRegistrationServiceTest {
 
     private VehicleRegistrationService.RegistrationRequest request(UUID partnerId, Instant arrival) {
         return new VehicleRegistrationService.RegistrationRequest(
-                partnerId, " 51c 12345 ", arrival, "Driver", null, null, null, List.of());
+                partnerId, " 51c 12345 ", arrival, "Driver", null, null, null, "Bãi xe xuất phát", null, null, List.of());
     }
 }

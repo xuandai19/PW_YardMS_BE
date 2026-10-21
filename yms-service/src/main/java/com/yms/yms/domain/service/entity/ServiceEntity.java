@@ -34,6 +34,9 @@ public class ServiceEntity {
     @Column(name = "hourly_rate", nullable = false, precision = 19, scale = 4)
     private BigDecimal hourlyRate;
 
+    @Column(name = "expected_duration_minutes", nullable = false)
+    private Integer expectedDurationMinutes = 60;
+
     @Column(nullable = false)
     private boolean active = true;
 

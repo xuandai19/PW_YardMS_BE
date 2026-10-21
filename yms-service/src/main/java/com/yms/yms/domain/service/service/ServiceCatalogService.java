@@ -61,6 +61,7 @@ public class ServiceCatalogService {
         existing.setServiceType(incoming.getServiceType());
         existing.setUnit(incoming.getUnit());
         existing.setActive(incoming.isActive());
+        existing.setExpectedDurationMinutes(incoming.getExpectedDurationMinutes());
         if (incoming.getHourlyRate() != null && oldRate.compareTo(incoming.getHourlyRate()) != 0) {
             // close previous history row
             priceHistoryRepository.findByServiceIdOrderByValidFromDesc(id).stream()

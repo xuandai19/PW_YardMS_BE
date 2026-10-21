@@ -186,6 +186,39 @@ public class FinanceService {
         return status != null ? invoices.findByStatusOrderByIssueDateDesc(status) : invoices.findAll();
     }
 
+    public List<ServiceOrder> issueableOrders(UUID partnerId, UUID contractId) {
+        if (partnerId == null) {
+            throw new BusinessException("Invoice partner is required", HttpStatus.BAD_REQUEST);
+        }
+        UUID sourcePartnerA = partnerId;
+        if (contractId != null) {
+            Contract contract = contracts.findById(contractId)
+                    .orElseThrow(() -> new BusinessException("Contract not found", HttpStatus.NOT_FOUND));
+            LocalDate today = LocalDate.now(clock);
+            if (!"ACTIVE".equals(contract.getStatus()) || today.isBefore(contract.getStartDate())
+                    || today.isAfter(contract.getEndDate())
+                    || (!partnerId.equals(contract.getPartnerAId()) && !partnerId.equals(contract.getPartnerCId()))) {
+                throw new BusinessException("Select an active contract that includes this invoice partner",
+                        HttpStatus.BAD_REQUEST);
+            }
+            sourcePartnerA = contract.getPartnerAId();
+        }
+        UUID sourceId = sourcePartnerA;
+        List<UUID> ids = jdbc.query("""
+                SELECT so.id
+                FROM service_orders so
+                JOIN trips t ON t.id = so.trip_id
+                JOIN pre_notifications pn ON pn.trip_id = t.id
+                WHERE pn.partner_a_id = ?
+                  AND so.status = 'COMPLETED'
+                  AND NOT EXISTS (
+                      SELECT 1 FROM invoice_service_orders iso WHERE iso.service_order_id = so.id
+                  )
+                ORDER BY so.created_at DESC
+                """, (resultSet, rowNumber) -> resultSet.getObject(1, UUID.class), sourceId);
+        return serviceOrders.findAllById(ids);
+    }
+
     public Invoice invoice(UUID invoiceId) {
         return invoices.findById(invoiceId)
                 .orElseThrow(() -> new BusinessException("Invoice not found", HttpStatus.NOT_FOUND));

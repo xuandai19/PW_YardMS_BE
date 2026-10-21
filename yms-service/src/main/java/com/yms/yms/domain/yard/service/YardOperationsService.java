@@ -66,6 +66,17 @@ public class YardOperationsService {
     @Transactional
     public YardLog checkIn(String token, UUID yardId) {
         PreNotification notification = qrCodeService.verify(token);
+        return checkIn(notification, yardId);
+    }
+
+    @Transactional
+    public YardLog manualCheckIn(UUID preNotificationId, UUID yardId) {
+        PreNotification notification = notificationRepository.findById(preNotificationId)
+                .orElseThrow(() -> new BusinessException("Pre-notification not found", HttpStatus.NOT_FOUND));
+        return checkIn(notification, yardId);
+    }
+
+    private YardLog checkIn(PreNotification notification, UUID yardId) {
         if (!"REGISTERED".equals(notification.getStatus())) {
             throw new BusinessException("Vehicle is not awaiting check-in", HttpStatus.CONFLICT);
         }

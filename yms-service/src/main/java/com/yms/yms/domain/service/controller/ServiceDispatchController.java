@@ -11,8 +11,8 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
-import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
+import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import java.util.List;
@@ -37,6 +37,12 @@ public class ServiceDispatchController {
     @GetMapping
     public ApiResponse<List<ServiceOrder>> list(@RequestParam(required = false) UUID vehicleId) {
         return ApiResponse.ok(dispatchService.list(vehicleId));
+    }
+
+    @GetMapping("/availability")
+    public ApiResponse<ServiceDispatchService.WorkerAvailability> availability(
+            @RequestParam UUID vehicleId, @RequestParam UUID serviceId) {
+        return ApiResponse.ok(dispatchService.availability(vehicleId, serviceId));
     }
 
     @PostMapping("/{id}/start")

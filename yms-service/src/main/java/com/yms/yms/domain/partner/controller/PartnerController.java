@@ -5,6 +5,7 @@ import com.yms.yms.domain.partner.entity.Partner;
 import com.yms.yms.domain.partner.service.PartnerService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -22,18 +23,18 @@ public class PartnerController {
     }
 
     @GetMapping
-    public ApiResponse<List<Partner>> list() {
-        return ApiResponse.ok(partnerService.findAll());
+    public ApiResponse<List<PartnerView>> list() {
+        return ApiResponse.ok(partnerService.findAll().stream().map(PartnerView::from).toList());
     }
 
     @GetMapping("/{id}")
-    public ApiResponse<Partner> get(@PathVariable UUID id) {
-        return ApiResponse.ok(partnerService.findById(id));
+    public ApiResponse<PartnerView> get(@PathVariable UUID id) {
+        return ApiResponse.ok(PartnerView.from(partnerService.findById(id)));
     }
 
     @PostMapping
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    public ApiResponse<Partner> create(@Valid @RequestBody CreatePartnerRequest request) {
+    public ApiResponse<PartnerView> create(@Valid @RequestBody CreatePartnerRequest request) {
         Partner partner = new Partner();
         partner.setCode(request.code());
         partner.setName(request.name());
@@ -45,12 +46,12 @@ public class PartnerController {
         partner.setCountryCode(request.countryCode());
         partner.setPartnerType(request.partnerType());
         partner.setActive(request.active() == null || request.active());
-        return ApiResponse.ok(partnerService.create(partner));
+        return ApiResponse.ok(PartnerView.from(partnerService.create(partner)));
     }
 
     @PutMapping("/{id}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    public ApiResponse<Partner> update(@PathVariable UUID id, @RequestBody UpdatePartnerRequest request) {
+    public ApiResponse<PartnerView> update(@PathVariable UUID id, @RequestBody UpdatePartnerRequest request) {
         Partner incoming = new Partner();
         incoming.setName(request.name());
         incoming.setTaxCode(request.taxCode());
@@ -60,7 +61,7 @@ public class PartnerController {
         incoming.setAddress(request.address());
         incoming.setCountryCode(request.countryCode());
         incoming.setActive(request.active() == null || request.active());
-        return ApiResponse.ok(partnerService.update(id, incoming));
+        return ApiResponse.ok(PartnerView.from(partnerService.update(id, incoming)));
     }
 
     @DeleteMapping("/{id}")
@@ -72,8 +73,20 @@ public class PartnerController {
 
     @PostMapping("/{partnerAId}/relationships/{partnerCId}")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    public ApiResponse<Partner> link(@PathVariable UUID partnerAId, @PathVariable UUID partnerCId) {
-        return ApiResponse.ok(partnerService.linkRelationship(partnerAId, partnerCId));
+    public ApiResponse<PartnerView> link(@PathVariable UUID partnerAId, @PathVariable UUID partnerCId) {
+        return ApiResponse.ok(PartnerView.from(partnerService.linkRelationship(partnerAId, partnerCId)));
+    }
+
+    public record PartnerView(UUID id, String code, String name, String taxCode,
+                              String contactPerson, String contactPhone, String contactEmail,
+                              String address, String countryCode, String partnerType,
+                              boolean active) {
+        static PartnerView from(Partner partner) {
+            return new PartnerView(partner.getId(), partner.getCode(), partner.getName(),
+                    partner.getTaxCode(), partner.getContactPerson(), partner.getContactPhone(),
+                    partner.getContactEmail(), partner.getAddress(), partner.getCountryCode(),
+                    partner.getPartnerType(), partner.isActive());
+        }
     }
 
     public record CreatePartnerRequest(
@@ -85,7 +98,7 @@ public class PartnerController {
             String contactEmail,
             String address,
             @NotBlank String countryCode,
-            @NotBlank String partnerType,
+            @NotBlank @Pattern(regexp = "A|C", message = "partnerType phải là A hoặc C") String partnerType,
             Boolean active
     ) {
     }

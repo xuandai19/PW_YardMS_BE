@@ -5,6 +5,8 @@ import com.yms.yms.domain.service.entity.ServiceEntity;
 import com.yms.yms.domain.service.entity.ServiceOrder;
 import com.yms.yms.domain.service.repository.ServiceOrderRepository;
 import com.yms.yms.domain.service.repository.ServiceRepository;
+import com.yms.yms.domain.service.repository.YardServiceWorkerRepository;
+import com.yms.yms.domain.finance.service.TripInvoiceService;
 import com.yms.yms.domain.vehicle.entity.PreNotification;
 import com.yms.yms.domain.vehicle.repository.PreNotificationRepository;
 import com.yms.yms.domain.yard.entity.YardVehicleAssignment;
@@ -31,17 +33,23 @@ public class ServiceDispatchService {
     private final ServiceRepository serviceRepository;
     private final PreNotificationRepository notificationRepository;
     private final YardVehicleAssignmentRepository assignmentRepository;
+    private final YardServiceWorkerRepository workerRepository;
+    private final TripInvoiceService tripInvoiceService;
     private final Clock clock;
 
     public ServiceDispatchService(ServiceOrderRepository orderRepository,
                                   ServiceRepository serviceRepository,
                                   PreNotificationRepository notificationRepository,
                                   YardVehicleAssignmentRepository assignmentRepository,
+                                  YardServiceWorkerRepository workerRepository,
+                                  TripInvoiceService tripInvoiceService,
                                   Clock clock) {
         this.orderRepository = orderRepository;
         this.serviceRepository = serviceRepository;
         this.notificationRepository = notificationRepository;
         this.assignmentRepository = assignmentRepository;
+        this.workerRepository = workerRepository;
+        this.tripInvoiceService = tripInvoiceService;
         this.clock = clock;
     }
 
@@ -66,9 +74,16 @@ public class ServiceDispatchService {
                     .filter(ServiceEntity::isActive)
                     .orElseThrow(() -> new BusinessException("Active service not found: " + serviceId,
                             HttpStatus.NOT_FOUND));
-            if (orderRepository.existsByTripIdAndServiceId(notification.getTripId(), serviceId)) {
-                throw new BusinessException("Service is already registered for this vehicle visit",
-                        HttpStatus.CONFLICT);
+            ServiceOrder existing = orderRepository.findByTripIdAndServiceId(notification.getTripId(), serviceId)
+                    .orElse(null);
+            if (existing != null) {
+                existing.setYardId(assignment.getYardId());
+                ServiceEntity existingService = serviceRepository.findById(serviceId).orElseThrow();
+                if (existing.getExpectedEndAt() == null) {
+                    existing.setExpectedEndAt(clock.instant().plus(Duration.ofMinutes(existingService.getExpectedDurationMinutes())));
+                }
+                orderRepository.save(existing);
+                continue;
             }
             ServiceOrder order = new ServiceOrder();
             order.setTripId(notification.getTripId());
@@ -79,6 +94,7 @@ public class ServiceDispatchService {
             order.setQuantity(BigDecimal.ZERO.setScale(MONEY_SCALE));
             order.setTotalAmount(BigDecimal.ZERO.setScale(MONEY_SCALE));
             order.setStatus("ASSIGNED");
+            order.setExpectedEndAt(clock.instant().plus(Duration.ofMinutes(service.getExpectedDurationMinutes())));
             orders.add(orderRepository.save(order));
         }
         return orders;
@@ -99,6 +115,7 @@ public class ServiceDispatchService {
             order.setQuantity(BigDecimal.ZERO.setScale(MONEY_SCALE));
             order.setTotalAmount(BigDecimal.ZERO.setScale(MONEY_SCALE));
             order.setStatus("SCHEDULED");
+            order.setExpectedEndAt(clock.instant().plus(Duration.ofMinutes(service.getExpectedDurationMinutes())));
             orderRepository.save(order);
         }
     }
@@ -111,10 +128,14 @@ public class ServiceDispatchService {
                 throw new BusinessException("Only assigned services can be started", HttpStatus.CONFLICT);
             }
         }
-        assignmentRepository.findByVehicleIdAndCheckOutAtIsNull(order.getVehicleId())
+        YardVehicleAssignment assignment = assignmentRepository.findByVehicleIdAndCheckOutAtIsNull(order.getVehicleId())
                 .orElseThrow(() -> new BusinessException("Vehicle must check into a yard before service starts",
                         HttpStatus.CONFLICT));
+        order.setYardId(assignment.getYardId());
         order.setStartAt(clock.instant());
+        ServiceEntity service = serviceRepository.findById(order.getServiceId())
+                .orElseThrow(() -> new BusinessException("Service not found", HttpStatus.NOT_FOUND));
+        order.setExpectedEndAt(order.getStartAt().plus(Duration.ofMinutes(service.getExpectedDurationMinutes())));
         order.setStatus("IN_PROGRESS");
         return orderRepository.save(order);
     }
@@ -135,7 +156,9 @@ public class ServiceDispatchService {
                 .divide(MILLIS_PER_HOUR, MONEY_SCALE, RoundingMode.HALF_UP));
         order.setTotalAmount(calculateCost(order.getUnitPrice(), durationMillis));
         order.setStatus("COMPLETED");
-        return orderRepository.save(order);
+        ServiceOrder completed = orderRepository.save(order);
+        tripInvoiceService.issueWhenTripServicesComplete(order.getTripId());
+        return completed;
     }
 
     @Transactional(readOnly = true)
@@ -146,10 +169,37 @@ public class ServiceDispatchService {
         return orderRepository.findAll();
     }
 
+    @Transactional(readOnly = true)
+    public WorkerAvailability availability(UUID vehicleId, UUID serviceId) {
+        YardVehicleAssignment assignment = assignmentRepository.findByVehicleIdAndCheckOutAtIsNull(vehicleId)
+                .orElseThrow(() -> new BusinessException("Vehicle has no active yard assignment", HttpStatus.CONFLICT));
+        UUID yardId = assignment.getYardId();
+        ServiceEntity service = serviceRepository.findById(serviceId)
+                .orElseThrow(() -> new BusinessException("Service not found", HttpStatus.NOT_FOUND));
+        List<com.yms.yms.domain.service.entity.YardServiceWorker> workers = workerRepository
+                .findByYardIdAndServiceTypeAndActiveTrueOrderByWorkerName(yardId, service.getServiceType());
+        long busy = orderRepository.countByYardIdAndServiceIdAndStatus(yardId, serviceId, "IN_PROGRESS");
+        List<WorkerAvailabilityItem> items = workers.stream().map(worker ->
+                new WorkerAvailabilityItem(worker.getId(), worker.getWorkerName(), itemsAvailableIndex(workers, worker, busy)))
+                .toList();
+        return new WorkerAvailability(yardId, serviceId, service.getName(), items.size(),
+                Math.max(0, items.size() - (int) busy), items);
+    }
+
+    private boolean itemsAvailableIndex(List<com.yms.yms.domain.service.entity.YardServiceWorker> workers,
+                                        com.yms.yms.domain.service.entity.YardServiceWorker worker, long busy) {
+        return workers.indexOf(worker) >= busy;
+    }
+
     private ServiceOrder findOrder(UUID id) {
         return orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException("Service order not found", HttpStatus.NOT_FOUND));
     }
+
+    public record WorkerAvailability(UUID yardId, UUID serviceId, String serviceName, int workerCount,
+                                     int availableCount, List<WorkerAvailabilityItem> workers) { }
+
+    public record WorkerAvailabilityItem(UUID id, String name, boolean available) { }
 
     static BigDecimal calculateCost(BigDecimal hourlyRate, long durationMillis) {
         if (hourlyRate == null || hourlyRate.signum() < 0 || durationMillis < 0) {

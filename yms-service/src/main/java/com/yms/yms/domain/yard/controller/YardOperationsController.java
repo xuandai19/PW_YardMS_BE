@@ -37,6 +37,12 @@ public class YardOperationsController {
         return ApiResponse.ok(operationsService.checkIn(request.token(), request.yardId()));
     }
 
+    @PostMapping("/manual-check-in")
+    @PreAuthorize("hasRole('ADMIN')")
+    public ApiResponse<YardLog> manualCheckIn(@Valid @RequestBody ManualCheckInRequest request) {
+        return ApiResponse.ok(operationsService.manualCheckIn(request.preNotificationId(), request.yardId()));
+    }
+
     @PostMapping("/check-out")
     public ApiResponse<YardOperationsService.CheckOutResult> checkOut(@Valid @RequestBody CheckOutRequest request) {
         return ApiResponse.ok(operationsService.checkOut(request.preNotificationId()));
@@ -51,6 +57,9 @@ public class YardOperationsController {
     }
 
     public record CheckInRequest(@NotBlank String token, @NotNull UUID yardId) {
+    }
+
+    public record ManualCheckInRequest(@NotNull UUID preNotificationId, @NotNull UUID yardId) {
     }
 
     public record CheckOutRequest(@NotNull UUID preNotificationId) {

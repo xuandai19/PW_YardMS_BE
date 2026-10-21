@@ -15,6 +15,9 @@ spring:
   flyway:
     enabled: true
     repair-on-migrate: true
+    # This database has V7 applied, but that legacy migration file is absent from this checkout.
+    # Ignore the missing applied record while keeping checksum validation for resolved migrations.
+    ignore-migration-patterns: "*:missing"
     locations: classpath:db/migration
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}

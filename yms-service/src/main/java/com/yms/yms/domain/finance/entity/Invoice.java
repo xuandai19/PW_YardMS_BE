@@ -71,4 +71,13 @@ public class Invoice {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    @Column(name = "delivery_status", nullable = false, length = 20)
+    private String deliveryStatus = "NOT_SENT";
+
+    @Column(name = "delivery_error", length = 500)
+    private String deliveryError;
+
+    @Column(name = "delivered_at")
+    private Instant deliveredAt;
 }

@@ -44,6 +44,9 @@ public class ServiceOrder {
     @Column(name = "end_at")
     private Instant endAt;
 
+    @Column(name = "expected_end_at")
+    private Instant expectedEndAt;
+
     @Column(nullable = false, precision = 19, scale = 4)
     private BigDecimal quantity = BigDecimal.ONE;
 

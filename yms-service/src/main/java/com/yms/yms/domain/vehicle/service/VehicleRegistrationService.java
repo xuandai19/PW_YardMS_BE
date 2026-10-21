@@ -15,11 +15,13 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.Clock;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
 import java.util.UUID;
@@ -54,22 +56,33 @@ public class VehicleRegistrationService {
     public PreNotification register(RegistrationRequest request) {
         Instant now = clock.instant();
         if (request.plannedArrival().isBefore(now.plus(MINIMUM_NOTICE))) {
-            throw new BusinessException("Vehicle arrival must be registered at least 4 hours in advance",
+            throw new BusinessException("Thời gian đến phải cách thời điểm đăng ký ít nhất 4 giờ",
                     HttpStatus.BAD_REQUEST);
         }
         String plate = normalizePlate(request.plateNumber());
+        if (request.driverName() == null || request.driverName().isBlank() || request.driverName().trim().length() > 150) {
+            throw new BusinessException("Tên tài xế không được để trống và tối đa 150 ký tự", HttpStatus.BAD_REQUEST);
+        }
+        if (request.driverPhone() != null && !request.driverPhone().isBlank()
+                && !request.driverPhone().matches("[+0-9 ().-]{7,30}")) {
+            throw new BusinessException("Số điện thoại phải có 7-30 ký tự và chỉ gồm số, dấu +, khoảng trắng, ngoặc, chấm hoặc gạch ngang",
+                    HttpStatus.BAD_REQUEST);
+        }
+        if ((request.originLatitude() == null) != (request.originLongitude() == null)) {
+            throw new BusinessException("Cần cung cấp đồng thời vĩ độ và kinh độ của điểm xuất phát", HttpStatus.BAD_REQUEST);
+        }
         LocalDate arrivalDate = request.plannedArrival().atZone(BUSINESS_ZONE).toLocalDate();
         if (notificationRepository.existsByPlateNumberAndArrivalDate(plate, arrivalDate)) {
-            throw new BusinessException("This plate already has a registration for the arrival date",
+            throw new BusinessException("Biển số này đã được đăng ký trong ngày đến đã chọn",
                     HttpStatus.CONFLICT);
         }
         Partner partner = partnerRepository.findById(request.partnerAId())
                 .filter(p -> p.isActive() && "A".equalsIgnoreCase(p.getPartnerType()))
-                .orElseThrow(() -> new BusinessException("Active Partner A not found", HttpStatus.NOT_FOUND));
+                .orElseThrow(() -> new BusinessException("Không tìm thấy đối tác A đang hoạt động", HttpStatus.NOT_FOUND));
 
         Vehicle vehicle = vehicleRepository.findFirstByPlateNumberIgnoreCase(plate).orElseGet(Vehicle::new);
         if (vehicle.getId() != null && !vehicle.getPartnerAId().equals(partner.getId())) {
-            throw new BusinessException("Vehicle plate is already registered to another Partner A",
+            throw new BusinessException("Biển số xe đã được đăng ký cho một đối tác A khác",
                     HttpStatus.CONFLICT);
         }
         vehicle.setPlateNumber(plate);
@@ -82,7 +95,11 @@ public class VehicleRegistrationService {
 
         Trip trip = new Trip();
         trip.setVehicleId(vehicle.getId());
-        trip.setOrigin("Pre-notified arrival");
+        trip.setTripCode("TRIP-" + arrivalDate.toString().replace("-", "") + "-" + plate.replaceAll("[^A-Z0-9]", ""));
+        trip.setTripName("Chuyến " + plate + " - " + arrivalDate.format(DateTimeFormatter.ofPattern("dd/MM/yyyy")));
+        trip.setOrigin(request.startAddress().trim());
+        trip.setOriginLatitude(request.originLatitude() == null ? null : BigDecimal.valueOf(request.originLatitude()));
+        trip.setOriginLongitude(request.originLongitude() == null ? null : BigDecimal.valueOf(request.originLongitude()));
         trip.setDestination("Yard");
         trip.setPlannedAt(request.plannedArrival());
         trip.setStatus("PLANNED");
@@ -104,7 +121,7 @@ public class VehicleRegistrationService {
         try {
             saved = notificationRepository.saveAndFlush(notification);
         } catch (DataIntegrityViolationException exception) {
-            throw new BusinessException("This plate already has a registration for the arrival date",
+            throw new BusinessException("Biển số này đã được đăng ký trong ngày đến đã chọn",
                     HttpStatus.CONFLICT);
         }
         if (request.serviceIds() != null && !request.serviceIds().isEmpty()) {
@@ -126,13 +143,18 @@ public class VehicleRegistrationService {
     private String normalizePlate(String value) {
         String normalized = value.trim().toUpperCase(Locale.ROOT).replaceAll("\\s+", "");
         if (normalized.isBlank() || normalized.length() > 30) {
-            throw new BusinessException("Plate number is invalid", HttpStatus.BAD_REQUEST);
+            throw new BusinessException("Biển số xe không hợp lệ (tối đa 30 ký tự)", HttpStatus.BAD_REQUEST);
+        }
+        if (!normalized.matches("[A-Z0-9.-]+")) {
+            throw new BusinessException("Biển số chỉ được gồm chữ cái, chữ số, dấu chấm hoặc dấu gạch ngang",
+                    HttpStatus.BAD_REQUEST);
         }
         return normalized;
     }
 
     public record RegistrationRequest(UUID partnerAId, String plateNumber, Instant plannedArrival,
                                      String driverName, String driverPhone, String carrierCompany,
-                                     String vehicleType, List<UUID> serviceIds) {
+                                     String vehicleType, String startAddress, Double originLatitude,
+                                     Double originLongitude, List<UUID> serviceIds) {
     }
 }

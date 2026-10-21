@@ -6,6 +6,7 @@ import com.yms.yms.domain.contract.service.ContractService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Pattern;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.*;
 
@@ -79,7 +80,7 @@ public class ContractController {
 
     public record CreateContractRequest(
             @NotBlank String contractNo,
-            @NotBlank String contractType,
+            @NotBlank @Pattern(regexp = "A-B|A-C", message = "contractType phải là A-B hoặc A-C") String contractType,
             @NotNull UUID partnerAId,
             UUID partnerCId,
             @NotNull LocalDate startDate,

@@ -7,6 +7,9 @@ import com.yms.yms.domain.vehicle.service.VehicleRegistrationService;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import jakarta.validation.constraints.DecimalMax;
+import jakarta.validation.constraints.DecimalMin;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -37,7 +40,8 @@ public class VehicleOperationsController {
     public ApiResponse<PreNotification> register(@Valid @RequestBody RegistrationRequest request) {
         return ApiResponse.ok(registrationService.register(new VehicleRegistrationService.RegistrationRequest(
                 request.partnerAId(), request.plateNumber(), request.plannedArrival(), request.driverName(),
-                request.driverPhone(), request.carrierCompany(), request.vehicleType(), request.serviceIds())));
+                request.driverPhone(), request.carrierCompany(), request.vehicleType(), request.startAddress(),
+                request.originLatitude(), request.originLongitude(), request.serviceIds())));
     }
 
     @GetMapping("/pre-notifications/waiting")
@@ -63,6 +67,9 @@ public class VehicleOperationsController {
             String driverPhone,
             String carrierCompany,
             String vehicleType,
+            @NotBlank @Size(max = 255) String startAddress,
+            @DecimalMin("-90.0") @DecimalMax("90.0") Double originLatitude,
+            @DecimalMin("-180.0") @DecimalMax("180.0") Double originLongitude,
             List<@NotNull UUID> serviceIds
     ) {
     }

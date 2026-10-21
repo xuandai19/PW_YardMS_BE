@@ -11,6 +11,7 @@ import com.yms.yms.domain.finance.service.FinanceService;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.NotEmpty;
 import jakarta.validation.Valid;
 import org.springframework.core.io.FileSystemResource;
 import org.springframework.core.io.Resource;
@@ -91,6 +92,13 @@ public class FinanceController {
         return ApiResponse.ok(financeService.invoices(partnerId, status));
     }
 
+    @GetMapping("/issueable-orders")
+    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    public ApiResponse<List<com.yms.yms.domain.service.entity.ServiceOrder>> issueableOrders(
+            @RequestParam UUID partnerId, @RequestParam(required = false) UUID contractId) {
+        return ApiResponse.ok(financeService.issueableOrders(partnerId, contractId));
+    }
+
     @GetMapping("/invoices/{id}")
     public ApiResponse<Invoice> invoice(@PathVariable UUID id) {
         return ApiResponse.ok(financeService.invoice(id));
@@ -152,7 +160,7 @@ public class FinanceController {
         return ApiResponse.ok(financeService.reconcile(partnerAId, partnerCId, from, to));
     }
 
-    public record InvoiceRequest(@NotNull UUID partnerId, UUID contractId, @NotNull List<UUID> serviceOrderIds,
+    public record InvoiceRequest(@NotNull UUID partnerId, UUID contractId, @NotEmpty List<@NotNull UUID> serviceOrderIds,
             @NotNull LocalDate dueDate, @DecimalMin("0.0") BigDecimal taxRatePercent) {
     }
 

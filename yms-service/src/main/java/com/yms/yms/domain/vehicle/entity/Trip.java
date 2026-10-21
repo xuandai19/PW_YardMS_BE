@@ -9,6 +9,7 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.math.BigDecimal;
 import java.time.Instant;
 import java.util.UUID;
 
@@ -25,8 +26,20 @@ public class Trip {
     @Column(name = "vehicle_id", nullable = false)
     private UUID vehicleId;
 
+    @Column(name = "trip_code", nullable = false, unique = true, length = 80)
+    private String tripCode;
+
+    @Column(name = "trip_name", nullable = false, length = 255)
+    private String tripName;
+
     @Column(nullable = false, length = 255)
     private String origin;
+
+    @Column(name = "origin_latitude", precision = 10, scale = 7)
+    private BigDecimal originLatitude;
+
+    @Column(name = "origin_longitude", precision = 10, scale = 7)
+    private BigDecimal originLongitude;
 
     @Column(nullable = false, length = 255)
     private String destination;

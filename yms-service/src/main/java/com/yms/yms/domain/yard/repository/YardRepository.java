@@ -13,6 +13,8 @@ import java.util.UUID;
 
 public interface YardRepository extends JpaRepository<Yard, UUID> {
     boolean existsByCode(String code);
+    boolean existsByNameIgnoreCase(String name);
+    boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
     Optional<Yard> findByCode(String code);
     List<Yard> findByStatus(String status);
 

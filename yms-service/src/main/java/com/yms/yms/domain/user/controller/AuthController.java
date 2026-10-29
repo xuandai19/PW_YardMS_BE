@@ -2,6 +2,7 @@ package com.yms.yms.domain.user.controller;
 
 import com.yms.common.api.ApiResponse;
 import com.yms.yms.domain.user.service.AuthService;
+import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.core.Authentication;
@@ -20,12 +21,14 @@ public class AuthController {
     }
 
     @PostMapping("/login")
+    @SecurityRequirements
     public ApiResponse<LoginResponse> login(@Valid @RequestBody LoginRequest request) {
         AuthService.LoginResult result = authService.login(request.username(), request.password());
         return ApiResponse.ok(toResponse(result));
     }
 
     @PostMapping("/refresh")
+    @SecurityRequirements
     public ApiResponse<LoginResponse> refresh(@RequestBody RefreshRequest request) {
         AuthService.LoginResult result = authService.refresh(request.refreshToken());
         return ApiResponse.ok(toResponse(result));

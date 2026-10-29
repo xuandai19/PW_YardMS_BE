@@ -63,6 +63,21 @@ public class YardOperationsService {
                 notification.getDriverName(), notification.getPlannedArrival(), notification.getPartnerAId());
     }
 
+    @Transactional(readOnly = true)
+    public PublicVehicleQrInfo publicQrInfo(String token) {
+        PreNotification notification = qrCodeService.verify(token);
+        if (!"REGISTERED".equals(notification.getStatus())) {
+            throw new BusinessException("QR chỉ hiển thị thông tin khi xe đang chờ vào bãi", HttpStatus.GONE);
+        }
+        Vehicle vehicle = vehicleRepository.findById(notification.getVehicleId())
+                .orElseThrow(() -> new BusinessException("Vehicle not found", HttpStatus.NOT_FOUND));
+        Trip trip = tripRepository.findById(notification.getTripId())
+                .orElseThrow(() -> new BusinessException("Trip not found", HttpStatus.NOT_FOUND));
+        return new PublicVehicleQrInfo(vehicle.getPlateNumber(), notification.getDriverName(),
+                notification.getDriverPhone(), notification.getCarrierCompany(), notification.getVehicleType(),
+                notification.getPlannedArrival(), trip.getDestination());
+    }
+
     @Transactional
     public YardLog checkIn(String token, UUID yardId) {
         PreNotification notification = qrCodeService.verify(token);
@@ -147,6 +162,11 @@ public class YardOperationsService {
 
     public record VehicleCheckInInfo(UUID preNotificationId, UUID vehicleId, String plateNumber,
                                      String driverName, Instant plannedArrival, UUID partnerAId) {
+    }
+
+    public record PublicVehicleQrInfo(String plateNumber, String driverName, String driverPhone,
+                                      String carrierCompany, String vehicleType, Instant plannedArrival,
+                                      String destinationYard) {
     }
 
     public record CheckOutResult(YardLog yardLog, long durationSeconds) {

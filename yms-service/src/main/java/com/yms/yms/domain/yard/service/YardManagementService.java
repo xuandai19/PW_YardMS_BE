@@ -53,8 +53,13 @@ public class YardManagementService {
     @Transactional
     public Yard create(Yard yard) {
         if (yardRepository.existsByCode(yard.getCode())) {
-            throw new BusinessException("Yard code already exists", HttpStatus.CONFLICT);
+            throw new BusinessException("Mã bãi đã tồn tại. Hãy chọn mã khác.", HttpStatus.CONFLICT);
         }
+        if (yardRepository.existsByNameIgnoreCase(yard.getName().trim())) {
+            throw new BusinessException("Tên bãi đã tồn tại. Hãy chọn tên khác.", HttpStatus.CONFLICT);
+        }
+        yard.setCode(yard.getCode().trim());
+        yard.setName(yard.getName().trim());
         validateYard(yard);
         Yard saved = yardRepository.save(yard);
         publishInventory();
@@ -64,6 +69,9 @@ public class YardManagementService {
     @Transactional
     public Yard update(UUID id, Yard incoming) {
         Yard existing = getYard(id);
+        if (yardRepository.existsByNameIgnoreCaseAndIdNot(incoming.getName().trim(), id)) {
+            throw new BusinessException("Tên bãi đã được sử dụng bởi bãi khác.", HttpStatus.CONFLICT);
+        }
         validateYard(incoming);
         long occupancy = assignmentRepository.countCurrentByYardId(id);
         if (incoming.getCapacity() < occupancy) {

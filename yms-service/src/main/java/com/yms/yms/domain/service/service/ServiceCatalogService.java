@@ -42,8 +42,13 @@ public class ServiceCatalogService {
     @Transactional
     public ServiceEntity create(ServiceEntity entity) {
         if (serviceRepository.existsByCode(entity.getCode())) {
-            throw new BusinessException("Service code already exists", HttpStatus.CONFLICT);
+            throw new BusinessException("Mã dịch vụ đã tồn tại. Hãy chọn mã khác.", HttpStatus.CONFLICT);
         }
+        if (serviceRepository.existsByNameIgnoreCase(entity.getName().trim())) {
+            throw new BusinessException("Tên dịch vụ đã tồn tại. Hãy chọn tên khác.", HttpStatus.CONFLICT);
+        }
+        entity.setName(entity.getName().trim());
+        entity.setCode(entity.getCode().trim());
         ServiceEntity saved = serviceRepository.save(entity);
         ServicePriceHistory history = new ServicePriceHistory();
         history.setServiceId(saved.getId());
@@ -56,8 +61,11 @@ public class ServiceCatalogService {
     @Transactional
     public ServiceEntity update(UUID id, ServiceEntity incoming, UUID changedBy) {
         ServiceEntity existing = findById(id);
+        if (serviceRepository.existsByNameIgnoreCaseAndIdNot(incoming.getName().trim(), id)) {
+            throw new BusinessException("Tên dịch vụ đã được sử dụng bởi dịch vụ khác.", HttpStatus.CONFLICT);
+        }
         BigDecimal oldRate = existing.getHourlyRate();
-        existing.setName(incoming.getName());
+        existing.setName(incoming.getName().trim());
         existing.setServiceType(incoming.getServiceType());
         existing.setUnit(incoming.getUnit());
         existing.setActive(incoming.isActive());

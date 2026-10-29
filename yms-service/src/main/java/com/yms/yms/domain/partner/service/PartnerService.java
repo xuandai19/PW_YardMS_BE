@@ -33,17 +33,25 @@ public class PartnerService {
     @Transactional
     public Partner create(Partner partner) {
         if (partnerRepository.existsByCode(partner.getCode())) {
-            throw new BusinessException("Partner code already exists", HttpStatus.CONFLICT);
+            throw new BusinessException("Mã đối tác đã tồn tại. Hãy chọn mã khác.", HttpStatus.CONFLICT);
+        }
+        if (partnerRepository.existsByNameIgnoreCase(partner.getName().trim())) {
+            throw new BusinessException("Tên đối tác đã tồn tại. Hãy kiểm tra hoặc chọn tên khác.", HttpStatus.CONFLICT);
         }
         if (!"A".equals(partner.getPartnerType()) && !"C".equals(partner.getPartnerType())) {
             throw new BusinessException("partnerType must be A or C", HttpStatus.BAD_REQUEST);
         }
+        partner.setCode(partner.getCode().trim());
+        partner.setName(partner.getName().trim());
         return partnerRepository.save(partner);
     }
 
     @Transactional
     public Partner update(UUID id, Partner incoming) {
         Partner existing = findById(id);
+        if (incoming.getName() != null && partnerRepository.existsByNameIgnoreCaseAndIdNot(incoming.getName().trim(), id)) {
+            throw new BusinessException("Tên đối tác đã được sử dụng bởi đối tác khác.", HttpStatus.CONFLICT);
+        }
         existing.setName(incoming.getName());
         existing.setTaxCode(incoming.getTaxCode());
         existing.setContactPerson(incoming.getContactPerson());

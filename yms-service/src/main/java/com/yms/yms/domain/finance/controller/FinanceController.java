@@ -94,7 +94,7 @@ public class FinanceController {
 
     @GetMapping("/issueable-orders")
     @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
-    public ApiResponse<List<com.yms.yms.domain.service.entity.ServiceOrder>> issueableOrders(
+    public ApiResponse<List<FinanceService.IssueableOrder>> issueableOrders(
             @RequestParam UUID partnerId, @RequestParam(required = false) UUID contractId) {
         return ApiResponse.ok(financeService.issueableOrders(partnerId, contractId));
     }
@@ -102,6 +102,11 @@ public class FinanceController {
     @GetMapping("/invoices/{id}")
     public ApiResponse<Invoice> invoice(@PathVariable UUID id) {
         return ApiResponse.ok(financeService.invoice(id));
+    }
+
+    @GetMapping("/invoices/{id}/items")
+    public ApiResponse<List<FinanceService.InvoiceLine>> invoiceItems(@PathVariable UUID id) {
+        return ApiResponse.ok(financeService.invoiceLines(id));
     }
 
     @PostMapping("/invoices/{id}/e-invoice")

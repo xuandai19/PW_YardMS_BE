@@ -10,5 +10,7 @@ import java.util.UUID;
 public interface ServiceRepository extends JpaRepository<ServiceEntity, UUID> {
     Optional<ServiceEntity> findByCode(String code);
     boolean existsByCode(String code);
+    boolean existsByNameIgnoreCase(String name);
+    boolean existsByNameIgnoreCaseAndIdNot(String name, UUID id);
     List<ServiceEntity> findByActiveTrue();
 }

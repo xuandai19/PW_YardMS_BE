@@ -186,7 +186,7 @@ public class FinanceService {
         return status != null ? invoices.findByStatusOrderByIssueDateDesc(status) : invoices.findAll();
     }
 
-    public List<ServiceOrder> issueableOrders(UUID partnerId, UUID contractId) {
+    public List<IssueableOrder> issueableOrders(UUID partnerId, UUID contractId) {
         if (partnerId == null) {
             throw new BusinessException("Invoice partner is required", HttpStatus.BAD_REQUEST);
         }
@@ -197,6 +197,7 @@ public class FinanceService {
             LocalDate today = LocalDate.now(clock);
             if (!"ACTIVE".equals(contract.getStatus()) || today.isBefore(contract.getStartDate())
                     || today.isAfter(contract.getEndDate())
+                    || (partnerId.equals(contract.getPartnerCId()) && !"A-C".equals(contract.getContractType()))
                     || (!partnerId.equals(contract.getPartnerAId()) && !partnerId.equals(contract.getPartnerCId()))) {
                 throw new BusinessException("Select an active contract that includes this invoice partner",
                         HttpStatus.BAD_REQUEST);
@@ -204,19 +205,55 @@ public class FinanceService {
             sourcePartnerA = contract.getPartnerAId();
         }
         UUID sourceId = sourcePartnerA;
-        List<UUID> ids = jdbc.query("""
-                SELECT so.id
+        return jdbc.query("""
+                SELECT so.id, so.vehicle_id, v.plate_number, so.service_id, s.name,
+                       so.total_amount, so.quantity, so.unit_price
                 FROM service_orders so
                 JOIN trips t ON t.id = so.trip_id
                 JOIN pre_notifications pn ON pn.trip_id = t.id
+                JOIN vehicles v ON v.id = so.vehicle_id
+                JOIN services s ON s.id = so.service_id
                 WHERE pn.partner_a_id = ?
                   AND so.status = 'COMPLETED'
+                  AND pn.status IN ('CHECKED_IN', 'CHECKED_OUT')
+                  AND EXISTS (
+                      SELECT 1 FROM yard_logs yl
+                      WHERE yl.pre_notification_id = pn.id AND yl.check_in_at IS NOT NULL
+                  )
                   AND NOT EXISTS (
                       SELECT 1 FROM invoice_service_orders iso WHERE iso.service_order_id = so.id
                   )
                 ORDER BY so.created_at DESC
-                """, (resultSet, rowNumber) -> resultSet.getObject(1, UUID.class), sourceId);
-        return serviceOrders.findAllById(ids);
+                """, (resultSet, rowNumber) -> new IssueableOrder(
+                    resultSet.getObject("id", UUID.class),
+                    resultSet.getObject("vehicle_id", UUID.class),
+                    resultSet.getString("plate_number"),
+                    resultSet.getObject("service_id", UUID.class),
+                    resultSet.getString("name"),
+                    resultSet.getBigDecimal("total_amount"),
+                    resultSet.getBigDecimal("quantity"),
+                    resultSet.getBigDecimal("unit_price")), sourceId);
+    }
+
+    public List<InvoiceLine> invoiceLines(UUID invoiceId) {
+        invoice(invoiceId);
+        return jdbc.query("""
+                SELECT so.id AS service_order_id, v.plate_number, s.code AS service_code,
+                       s.name AS service_name, so.quantity, so.unit_price, iso.line_amount
+                FROM invoice_service_orders iso
+                JOIN service_orders so ON so.id = iso.service_order_id
+                JOIN vehicles v ON v.id = so.vehicle_id
+                JOIN services s ON s.id = so.service_id
+                WHERE iso.invoice_id = ?
+                ORDER BY so.created_at, so.id
+                """, (resultSet, rowNumber) -> new InvoiceLine(
+                    resultSet.getObject("service_order_id", UUID.class),
+                    resultSet.getString("plate_number"),
+                    resultSet.getString("service_code"),
+                    resultSet.getString("service_name"),
+                    resultSet.getBigDecimal("quantity"),
+                    resultSet.getBigDecimal("unit_price"),
+                    resultSet.getBigDecimal("line_amount")), invoiceId);
     }
 
     public Invoice invoice(UUID invoiceId) {
@@ -430,4 +467,10 @@ public class FinanceService {
     public record IssueInvoiceRequest(UUID partnerId, UUID contractId, List<UUID> serviceOrderIds, LocalDate dueDate,
             BigDecimal taxRatePercent) {
     }
+
+    public record IssueableOrder(UUID id, UUID vehicleId, String plateNumber, UUID serviceId,
+            String serviceName, BigDecimal totalAmount, BigDecimal quantity, BigDecimal unitPrice) { }
+
+    public record InvoiceLine(UUID serviceOrderId, String plateNumber, String serviceCode, String serviceName,
+            BigDecimal quantity, BigDecimal unitPrice, BigDecimal lineAmount) { }
 }

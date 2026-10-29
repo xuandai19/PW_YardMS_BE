@@ -9,10 +9,13 @@ import com.yms.yms.domain.vehicle.entity.Vehicle;
 import com.yms.yms.domain.vehicle.repository.PreNotificationRepository;
 import com.yms.yms.domain.vehicle.repository.TripRepository;
 import com.yms.yms.domain.vehicle.repository.VehicleRepository;
+import com.yms.yms.domain.yard.entity.Yard;
+import com.yms.yms.domain.yard.repository.YardRepository;
 import com.yms.yms.domain.service.service.ServiceDispatchService;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
@@ -37,6 +40,23 @@ public class VehicleRegistrationService {
     private final PartnerRepository partnerRepository;
     private final ServiceDispatchService dispatchService;
     private final Clock clock;
+    private final YardRepository yardRepository;
+
+    @Autowired
+    public VehicleRegistrationService(VehicleRepository vehicleRepository,
+                                      PreNotificationRepository notificationRepository,
+                                      TripRepository tripRepository,
+                                      PartnerRepository partnerRepository,
+                                      ServiceDispatchService dispatchService,
+                                      Clock clock, YardRepository yardRepository) {
+        this.vehicleRepository = vehicleRepository;
+        this.notificationRepository = notificationRepository;
+        this.tripRepository = tripRepository;
+        this.partnerRepository = partnerRepository;
+        this.dispatchService = dispatchService;
+        this.clock = clock;
+        this.yardRepository = yardRepository;
+    }
 
     public VehicleRegistrationService(VehicleRepository vehicleRepository,
                                       PreNotificationRepository notificationRepository,
@@ -44,12 +64,7 @@ public class VehicleRegistrationService {
                                       PartnerRepository partnerRepository,
                                       ServiceDispatchService dispatchService,
                                       Clock clock) {
-        this.vehicleRepository = vehicleRepository;
-        this.notificationRepository = notificationRepository;
-        this.tripRepository = tripRepository;
-        this.partnerRepository = partnerRepository;
-        this.dispatchService = dispatchService;
-        this.clock = clock;
+        this(vehicleRepository, notificationRepository, tripRepository, partnerRepository, dispatchService, clock, null);
     }
 
     @Transactional
@@ -100,7 +115,15 @@ public class VehicleRegistrationService {
         trip.setOrigin(request.startAddress().trim());
         trip.setOriginLatitude(request.originLatitude() == null ? null : BigDecimal.valueOf(request.originLatitude()));
         trip.setOriginLongitude(request.originLongitude() == null ? null : BigDecimal.valueOf(request.originLongitude()));
-        trip.setDestination("Yard");
+        Yard targetYard = request.targetYardId() == null || yardRepository == null ? null : yardRepository.findById(request.targetYardId())
+                .filter(yard -> "ACTIVE".equals(yard.getStatus()))
+                .orElseThrow(() -> new BusinessException("Bãi xe đích không tồn tại hoặc đang ngừng hoạt động", HttpStatus.BAD_REQUEST));
+        trip.setDestination(targetYard == null ? "Yard" : targetYard.getName());
+        if (targetYard != null) {
+            trip.setDestinationYardId(targetYard.getId());
+            trip.setDestinationLatitude(targetYard.getLatitude());
+            trip.setDestinationLongitude(targetYard.getLongitude());
+        }
         trip.setPlannedAt(request.plannedArrival());
         trip.setStatus("PLANNED");
         trip = tripRepository.save(trip);
@@ -155,6 +178,13 @@ public class VehicleRegistrationService {
     public record RegistrationRequest(UUID partnerAId, String plateNumber, Instant plannedArrival,
                                      String driverName, String driverPhone, String carrierCompany,
                                      String vehicleType, String startAddress, Double originLatitude,
-                                     Double originLongitude, List<UUID> serviceIds) {
+                                     Double originLongitude, UUID targetYardId, List<UUID> serviceIds) {
+        public RegistrationRequest(UUID partnerAId, String plateNumber, Instant plannedArrival,
+                                   String driverName, String driverPhone, String carrierCompany,
+                                   String vehicleType, String startAddress, Double originLatitude,
+                                   Double originLongitude, List<UUID> serviceIds) {
+            this(partnerAId, plateNumber, plannedArrival, driverName, driverPhone, carrierCompany,
+                    vehicleType, startAddress, originLatitude, originLongitude, null, serviceIds);
+        }
     }
 }

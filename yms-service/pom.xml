@@ -15,6 +15,11 @@
 
     <dependencies>
         <dependency>
+            <groupId>org.springdoc</groupId>
+            <artifactId>springdoc-openapi-starter-webmvc-ui</artifactId>
+            <version>2.8.15</version>
+        </dependency>
+        <dependency>
             <groupId>com.yms</groupId>
             <artifactId>yms-common</artifactId>
             <version>${project.version}</version>

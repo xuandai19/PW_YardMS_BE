@@ -2,6 +2,7 @@ package com.yms.yms.infrastructure.security;
 
 import com.yms.yms.domain.user.entity.User;
 import com.yms.yms.domain.user.repository.UserRepository;
+import com.yms.yms.domain.user.service.UserPermissionResolver;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -28,10 +29,8 @@ public class YmsUserDetailsService implements UserDetailsService {
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role.getCode()))
                 .collect(Collectors.toList());
 
-        // also expose permissions as authorities
-        user.getRoles().forEach(role ->
-                role.getPermissions().forEach(p ->
-                        authorities.add(new SimpleGrantedAuthority(p.getCode()))));
+        UserPermissionResolver.effectiveCodes(user).forEach(code ->
+                authorities.add(new SimpleGrantedAuthority(code)));
 
         return org.springframework.security.core.userdetails.User.builder()
                 .username(user.getUsername())

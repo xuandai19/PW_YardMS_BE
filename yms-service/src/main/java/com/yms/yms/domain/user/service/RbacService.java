@@ -39,8 +39,39 @@ public class RbacService {
         if (roles.size() != roleIds.size()) {
             throw new BusinessException("One or more roles not found", HttpStatus.BAD_REQUEST);
         }
+        boolean wasAdmin = user.getRoles().stream().anyMatch(role -> "ADMIN".equals(role.getCode()));
+        if (wasAdmin && roles.stream().noneMatch(role -> "ADMIN".equals(role.getCode()))) {
+            throw new BusinessException("Cannot remove the Admin role", HttpStatus.FORBIDDEN);
+        }
         user.setRoles(new HashSet<>(roles));
         userRepository.save(user);
+    }
+
+    @Transactional
+    public Role updateRolePermissions(UUID roleId, Set<String> permissionCodes) {
+        Role role = roleRepository.findById(roleId)
+                .orElseThrow(() -> new BusinessException("Role not found", HttpStatus.NOT_FOUND));
+        List<Permission> allPermissions = permissionRepository.findAll();
+        Set<String> knownCodes = allPermissions.stream().map(Permission::getCode)
+                .collect(java.util.stream.Collectors.toSet());
+        if (permissionCodes == null || !knownCodes.containsAll(permissionCodes)) {
+            throw new BusinessException("One or more permissions do not exist", HttpStatus.BAD_REQUEST);
+        }
+        if ("ADMIN".equals(role.getCode())) {
+            role.getPermissions().clear();
+            role.getPermissions().addAll(allPermissions);
+            return roleRepository.saveAndFlush(role);
+        }
+        if (permissionCodes.contains("*")) {
+            throw new BusinessException("Wildcard permission is reserved for Admin", HttpStatus.FORBIDDEN);
+        }
+        Set<Permission> selectedPermissions = allPermissions.stream()
+                .filter(permission -> permissionCodes.contains(permission.getCode()))
+                .collect(java.util.stream.Collectors.toSet());
+        // Keep Hibernate's managed collection and let it calculate join-table deletes/inserts.
+        role.getPermissions().removeIf(permission -> !selectedPermissions.contains(permission));
+        role.getPermissions().addAll(selectedPermissions);
+        return roleRepository.saveAndFlush(role);
     }
 
     public List<Role> listRoles() {

@@ -2,6 +2,7 @@ package com.yms.yms.domain.user.controller;
 
 import com.yms.common.api.ApiResponse;
 import com.yms.yms.domain.user.service.AuthService;
+import com.yms.yms.domain.user.service.UserPermissionResolver;
 import io.swagger.v3.oas.annotations.security.SecurityRequirements;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
@@ -53,7 +54,8 @@ public class AuthController {
                 .map(r -> r.getCode())
                 .toList();
         return new LoginResponse(result.accessToken(), result.refreshToken(),
-                result.user().getUsername(), roles);
+                result.user().getUsername(), roles,
+                UserPermissionResolver.effectiveCodes(result.user()).stream().sorted().toList());
     }
 
     public record LoginRequest(@NotBlank String username, @NotBlank String password) {
@@ -62,7 +64,8 @@ public class AuthController {
     public record RefreshRequest(String refreshToken) {
     }
 
-    public record LoginResponse(String accessToken, String refreshToken, String username, List<String> roles) {
+    public record LoginResponse(String accessToken, String refreshToken, String username, List<String> roles,
+                                List<String> permissions) {
     }
 
     public record MeResponse(String username, List<String> authorities) {

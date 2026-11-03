@@ -52,6 +52,9 @@ public class User {
     )
     private Set<Role> roles = new HashSet<>();
 
+    @OneToMany(mappedBy = "user", cascade = CascadeType.ALL, orphanRemoval = true, fetch = FetchType.EAGER)
+    private Set<UserPermission> permissionOverrides = new HashSet<>();
+
     @PrePersist
     void prePersist() {
         if (id == null) {

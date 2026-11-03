@@ -3,6 +3,7 @@ package com.yms.yms.domain.user.controller;
 import com.yms.common.api.ApiResponse;
 import com.yms.yms.domain.user.entity.User;
 import com.yms.yms.domain.user.service.UserService;
+import com.yms.yms.domain.user.service.UserPermissionResolver;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import org.springframework.security.access.prepost.PreAuthorize;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.*;
 import java.util.List;
 import java.util.Set;
 import java.util.UUID;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/users")
@@ -36,13 +38,13 @@ public class UserController {
     @PostMapping
     public ApiResponse<UserView> create(@Valid @RequestBody CreateUserRequest request) {
         User user = userService.create(request.username(), request.password(),
-                request.roles(), request.enabled() == null || request.enabled());
+                request.roles(), request.permissions(), request.enabled() == null || request.enabled());
         return ApiResponse.ok(UserView.from(user));
     }
 
     @PutMapping("/{id}")
     public ApiResponse<UserView> update(@PathVariable UUID id, @RequestBody UpdateUserRequest request) {
-        User user = userService.update(id, request.enabled(), request.roles(), request.password());
+        User user = userService.update(id, request.enabled(), request.roles(), request.permissions(), request.password());
         return ApiResponse.ok(UserView.from(user));
     }
 
@@ -56,22 +58,28 @@ public class UserController {
             @NotBlank String username,
             @NotBlank String password,
             Set<String> roles,
+            Set<String> permissions,
             Boolean enabled
     ) {
     }
 
-    public record UpdateUserRequest(Boolean enabled, Set<String> roles, String password) {
+    public record UpdateUserRequest(Boolean enabled, Set<String> roles, Set<String> permissions, String password) {
     }
 
     public record UserView(UUID id, String username, boolean enabled, int failedLoginAttempts,
-                           List<String> roles) {
+                           List<String> roles, List<String> permissions, Map<String, String> permissionOverrides) {
         static UserView from(User u) {
             return new UserView(
                     u.getId(),
                     u.getUsername(),
                     u.isEnabled(),
                     u.getFailedLoginAttempts(),
-                    u.getRoles().stream().map(r -> r.getCode()).toList()
+                    u.getRoles().stream().map(r -> r.getCode()).toList(),
+                    UserPermissionResolver.effectiveCodes(u).stream().sorted().toList(),
+                    u.getPermissionOverrides().stream().collect(java.util.stream.Collectors.toMap(
+                            override -> override.getPermission().getCode(),
+                            override -> override.getEffect(),
+                            (first, second) -> second))
             );
         }
     }

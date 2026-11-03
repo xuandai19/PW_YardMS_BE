@@ -46,6 +46,11 @@ public class QrCodeService {
 
     @Transactional
     public QrResult issue(UUID notificationId) {
+        return issue(notificationId, null);
+    }
+
+    @Transactional
+    public QrResult issue(UUID notificationId, String appBaseUrl) {
         PreNotification notification = findNotification(notificationId);
         if (!"REGISTERED".equals(notification.getStatus())) {
             throw new BusinessException("QR can only be issued for a registered vehicle", HttpStatus.CONFLICT);
@@ -57,7 +62,8 @@ public class QrCodeService {
         notification.setQrToken(token);
         notification.setQrExpiresAt(expiresAt);
         notificationRepository.save(notification);
-        return new QrResult(notificationId, token, expiresAt, imageData(token));
+        String scanUrl = buildScanUrl(appBaseUrl, token);
+        return new QrResult(notificationId, token, expiresAt, imageData(scanUrl == null ? token : scanUrl), scanUrl);
     }
 
     @Transactional(readOnly = true)
@@ -125,6 +131,27 @@ public class QrCodeService {
         }
     }
 
-    public record QrResult(UUID preNotificationId, String token, Instant expiresAt, String imageBase64) {
+    private String buildScanUrl(String appBaseUrl, String token) {
+        if (appBaseUrl == null || appBaseUrl.isBlank()) {
+            return null;
+        }
+        try {
+            java.net.URI base = java.net.URI.create(appBaseUrl.trim());
+            if (!("http".equalsIgnoreCase(base.getScheme()) || "https".equalsIgnoreCase(base.getScheme()))
+                    || base.getHost() == null || base.getUserInfo() != null
+                    || base.getQuery() != null || base.getFragment() != null) {
+                throw new IllegalArgumentException("Invalid public app URL");
+            }
+            String path = base.getPath() == null ? "" : base.getPath().replaceAll("/+$", "");
+            String basePath = base.getScheme() + "://" + base.getAuthority() + path;
+            return basePath + "/vehicle-qr?token="
+                    + java.net.URLEncoder.encode(token, StandardCharsets.UTF_8);
+        } catch (IllegalArgumentException exception) {
+            throw new BusinessException("Địa chỉ ứng dụng dùng trong QR phải là URL http/https hợp lệ", HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    public record QrResult(UUID preNotificationId, String token, Instant expiresAt, String imageBase64,
+                           String scanUrl) {
     }
 }

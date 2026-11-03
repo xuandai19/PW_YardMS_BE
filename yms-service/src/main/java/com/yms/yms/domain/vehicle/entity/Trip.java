@@ -44,6 +44,15 @@ public class Trip {
     @Column(nullable = false, length = 255)
     private String destination;
 
+    @Column(name = "destination_yard_id")
+    private UUID destinationYardId;
+
+    @Column(name = "destination_latitude", precision = 9, scale = 6)
+    private BigDecimal destinationLatitude;
+
+    @Column(name = "destination_longitude", precision = 9, scale = 6)
+    private BigDecimal destinationLongitude;
+
     @Column(name = "planned_at")
     private Instant plannedAt;
 

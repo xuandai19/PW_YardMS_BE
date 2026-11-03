@@ -51,8 +51,26 @@ public class GlobalExceptionHandler {
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleUnexpected(Exception ex) {
+        if (isConstraintConflict(ex)) {
+            log.warn("Request conflicted with a database constraint: {}", ex.getMessage());
+            return ResponseEntity.status(HttpStatus.CONFLICT).body(ApiResponse.fail(
+                    "Không thể lưu vì mã hoặc tên đã tồn tại, hoặc dữ liệu đang được chức năng khác sử dụng. Hãy kiểm tra lại thông tin."));
+        }
         log.error("Unhandled request failure", ex);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
                 .body(ApiResponse.fail("Internal server error"));
+    }
+
+    private boolean isConstraintConflict(Throwable error) {
+        for (Throwable cause = error; cause != null; cause = cause.getCause()) {
+            if (cause.getClass().getName().equals("org.springframework.dao.DataIntegrityViolationException")) {
+                return true;
+            }
+            if (cause instanceof java.sql.SQLException sql && sql.getSQLState() != null
+                    && sql.getSQLState().startsWith("23")) {
+                return true;
+            }
+        }
+        return false;
     }
 }

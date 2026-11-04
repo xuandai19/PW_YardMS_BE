@@ -13,3 +13,5 @@ Then read the relevant documents:
 - .ai/GIT_WORKFLOW.md
 
 Do not invent business rules or claim checks passed unless they were executed. Follow the existing architecture and keep changes focused.
+
+For domain changes, also read the matching specification under `.ai/test-specs/` and update `CHANGELOG.md` for meaningful project-level changes.

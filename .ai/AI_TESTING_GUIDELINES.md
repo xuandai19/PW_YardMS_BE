@@ -466,3 +466,8 @@ When generating or modifying backend code in this repository:
 - Add regression tests for every fixed bug where practical.
 - Prefer adding a reusable test helper when the same setup/assertion is repeated across multiple domains.
 - Keep this document technology-aware but avoid hard-coding assumptions that may become stale.
+
+
+## Domain-specific specifications
+
+Before implementing tests for a domain, read its corresponding file under `.ai/test-specs/`. These files specialize this general policy; they do not override approved business requirements. Update the matching specification when test coverage or domain behavior changes.

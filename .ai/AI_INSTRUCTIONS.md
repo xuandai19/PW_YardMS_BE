@@ -24,6 +24,22 @@ Before changing code, read this file and the relevant documents under .ai/.
 - Never commit secrets, credentials, production data or generated build artifacts.
 - Keep changes focused and preserve API compatibility unless a change is approved.
 
+## Domain test specifications
+
+Before changing a domain, read its matching specification under `.ai/test-specs/`:
+- User: `test-specs/user_TEST_SPEC.md`
+- Confirmation: `test-specs/confirmation_TEST_SPEC.md`
+- Partner: `test-specs/partner_TEST_SPEC.md`
+- Contract: `test-specs/contract_TEST_SPEC.md`
+- Service: `test-specs/service_TEST_SPEC.md`
+- Vehicle: `test-specs/vehicle_TEST_SPEC.md`
+- Yard: `test-specs/yard_TEST_SPEC.md`
+- Goods: `test-specs/goods_TEST_SPEC.md`
+- Tracking: `test-specs/tracking_TEST_SPEC.md`
+- Finance: `test-specs/finance_TEST_SPEC.md`
+
+Also update `CHANGELOG.md` for meaningful project-level changes.
+
 ## Related guides
 - Testing: AI_TESTING_GUIDELINES.md
 - Business rules: DOMAIN_BUSINESS_RULES.md

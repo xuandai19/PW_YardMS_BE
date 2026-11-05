@@ -123,4 +123,31 @@ class FinanceServiceTest {
         assertThrows(com.yms.common.exception.BusinessException.class, () -> financeService.recordPayment(invoiceId,
                 new BigDecimal("25.0001"), Instant.parse("2026-05-10T11:00:00Z"), null, null, null));
     }
+
+    @Test
+    void settlesTheCurrentDebtAmountWhenNoManualAmountIsProvided() {
+        UUID invoiceId = UUID.randomUUID();
+        Invoice invoice = new Invoice();
+        invoice.setId(invoiceId);
+        invoice.setTotalAmount(new BigDecimal("100.0000"));
+        invoice.setDueDate(LocalDate.of(2026, 5, 1));
+        invoice.setStatus("OVERDUE");
+        Debt debt = new Debt();
+        debt.setId(UUID.randomUUID());
+        debt.setInvoiceId(invoiceId);
+        debt.setPrincipalAmount(new BigDecimal("100.0000"));
+        debt.setPaidAmount(BigDecimal.ZERO);
+        debt.setInterestAccrued(new BigDecimal("5.0000"));
+        debt.setInterestPaid(BigDecimal.ZERO);
+        when(invoices.findByIdForUpdate(invoiceId)).thenReturn(Optional.of(invoice));
+        when(debts.findByInvoiceId(invoiceId)).thenReturn(Optional.of(debt));
+
+        financeService.recordPayment(invoiceId, null,
+                Instant.parse("2026-05-10T11:00:00Z"), "SETTLE", null, null);
+
+        assertEquals(new BigDecimal("100.0000"), debt.getPaidAmount());
+        assertEquals(new BigDecimal("5.0000"), debt.getInterestPaid());
+        assertEquals("PAID", debt.getStatus());
+        assertEquals("PAID", invoice.getStatus());
+    }
 }

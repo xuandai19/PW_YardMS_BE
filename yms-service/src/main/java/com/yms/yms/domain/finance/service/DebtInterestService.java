@@ -54,8 +54,25 @@ public class DebtInterestService {
 
     @Transactional
     public int accrue(LocalDate accrualDate) {
+        return accrue(debts.findByStatusOrderByDueDateAsc("OPEN"), accrualDate);
+    }
+
+    /**
+     * Charges one daily interest entry for every overdue, unsettled debt of a partner.
+     * This is used immediately after that partner's configuration changes, while the
+     * scheduled job continues to update every open debt on subsequent days.
+     */
+    @Transactional
+    public int accrueForPartner(UUID partnerId, LocalDate accrualDate) {
+        return accrue(debts.findByPartnerIdOrderByDueDateAsc(partnerId), accrualDate);
+    }
+
+    private int accrue(List<Debt> candidateDebts, LocalDate accrualDate) {
         int count = 0;
-        for (Debt debt : debts.findByStatusOrderByDueDateAsc("OPEN")) {
+        for (Debt debt : candidateDebts) {
+            if (!"OPEN".equals(debt.getStatus())) {
+                continue;
+            }
             BigDecimal principal = debt.getPrincipalAmount().subtract(debt.getPaidAmount()).max(BigDecimal.ZERO);
             if (principal.signum() == 0 || !accrualDate.isAfter(debt.getDueDate())) {
                 continue;

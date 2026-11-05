@@ -17,7 +17,7 @@ import com.yms.yms.domain.finance.repository.PaymentRepository;
 import com.yms.yms.domain.service.entity.ServiceOrder;
 import com.yms.yms.domain.service.repository.ServiceOrderRepository;
 import com.yms.yms.infrastructure.storage.ContractStorageService;
-import jakarta.transaction.Transactional;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.http.HttpStatus;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
@@ -261,17 +261,32 @@ public class FinanceService {
                 .orElseThrow(() -> new BusinessException("Invoice not found", HttpStatus.NOT_FOUND));
     }
 
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public Invoice submitEInvoice(UUID invoiceId) {
         Invoice invoice = invoice(invoiceId);
         if ("SUBMITTED".equals(invoice.getEInvoiceStatus())) {
             throw new BusinessException("Invoice was already submitted to the e-invoice provider",
                     HttpStatus.CONFLICT);
         }
-        invoice.setEInvoiceProviderId(eInvoiceGateway.submit(invoice));
-        invoice.setEInvoiceStatus("SUBMITTED");
-        invoice.setUpdatedAt(clock.instant());
-        return invoices.save(invoice);
+        try {
+            invoice.setEInvoiceProviderId(eInvoiceGateway.submit(invoice));
+            invoice.setEInvoiceStatus("SUBMITTED");
+            invoice.setUpdatedAt(clock.instant());
+            return invoices.save(invoice);
+        } catch (BusinessException exception) {
+            // Persist the outcome for the operator instead of leaving every failed
+            // request looking like it was never attempted.
+            invoice.setEInvoiceStatus("FAILED");
+            invoice.setUpdatedAt(clock.instant());
+            invoices.save(invoice);
+            throw exception;
+        } catch (RuntimeException exception) {
+            invoice.setEInvoiceStatus("FAILED");
+            invoice.setUpdatedAt(clock.instant());
+            invoices.save(invoice);
+            throw new BusinessException("Unable to submit e-invoice: " + exception.getMessage(),
+                    HttpStatus.BAD_GATEWAY);
+        }
     }
 
     public java.nio.file.Path invoicePdf(UUID invoiceId) {
@@ -290,8 +305,8 @@ public class FinanceService {
         if ("CANCELLED".equals(invoice.getStatus())) {
             throw new BusinessException("Cannot pay a cancelled invoice", HttpStatus.CONFLICT);
         }
-        if (amount == null || amount.signum() <= 0 || paidAt == null) {
-            throw new BusinessException("Positive payment amount and paid date are required", HttpStatus.BAD_REQUEST);
+        if (paidAt == null) {
+            throw new BusinessException("Paid date is required", HttpStatus.BAD_REQUEST);
         }
         if ((referenceNo != null && referenceNo.length() > 100) || (note != null && note.length() > 500)) {
             throw new BusinessException("Payment reference or note exceeds its maximum length",
@@ -299,12 +314,14 @@ public class FinanceService {
         }
         Debt debt = debts.findByInvoiceId(invoiceId).orElseThrow(
                 () -> new BusinessException("Debt record missing for invoice", HttpStatus.INTERNAL_SERVER_ERROR));
-        BigDecimal paymentAmount = amount.setScale(4, RoundingMode.HALF_UP);
-        if (paymentAmount.signum() <= 0) {
-            throw new BusinessException("Payment must be at least 0.0001", HttpStatus.BAD_REQUEST);
-        }
         BigDecimal principalOutstanding = debt.getPrincipalAmount().subtract(debt.getPaidAmount()).max(BigDecimal.ZERO);
         BigDecimal interestOutstanding = debt.getInterestAccrued().subtract(debt.getInterestPaid()).max(BigDecimal.ZERO);
+        // A normal "Record payment" operation settles the amount the partner currently owes.
+        // An amount is still accepted for integrations that intentionally record a partial payment.
+        BigDecimal paymentAmount = amount == null ? principalOutstanding.add(interestOutstanding) : amount.setScale(4, RoundingMode.HALF_UP);
+        if (paymentAmount.signum() <= 0) {
+            throw new BusinessException("There is no outstanding amount to pay", HttpStatus.CONFLICT);
+        }
         if (paymentAmount.compareTo(principalOutstanding.add(interestOutstanding)) > 0) {
             throw new BusinessException("Payment cannot exceed the remaining principal and accrued interest",
                     HttpStatus.CONFLICT);
@@ -326,7 +343,9 @@ public class FinanceService {
         }
         payments.save(payment);
         BigDecimal paid = debt.getPaidAmount().add(principalPayment);
-        invoice.setStatus(paid.compareTo(invoice.getTotalAmount()) == 0 ? "PAID" :
+        boolean settled = paid.compareTo(debt.getPrincipalAmount()) >= 0
+                && debt.getInterestPaid().add(interestPayment).compareTo(debt.getInterestAccrued()) >= 0;
+        invoice.setStatus(settled ? "PAID" :
                 invoice.getDueDate().isBefore(LocalDate.now(clock)) ? "OVERDUE" : "UNPAID");
         invoice.setUpdatedAt(clock.instant());
         invoices.save(invoice);
@@ -383,13 +402,34 @@ public class FinanceService {
         config.setGraceDays(graceDays);
         config.setActive(active);
         config.setUpdatedAt(clock.instant());
-        return interestConfigs.save(config);
+        DebtInterestConfig saved = interestConfigs.save(config);
+
+        // Keep the configured rate visible on every currently open debt.  The interest
+        // accrual service also reads this partner-level configuration, so future daily
+        // charges use the newly saved rate without requiring a new invoice.
+        List<Debt> openDebts = debts.findByPartnerIdOrderByDueDateAsc(partnerId).stream()
+                // Do not leave older invoices on a historical rate: every debt that
+                // still has an amount due for this partner uses this configuration.
+                .filter(debt -> debt.getAmountDue().signum() > 0)
+                .toList();
+        openDebts.forEach(debt -> {
+            debt.setInterestRatePerDay(active ? ratePercent : BigDecimal.ZERO);
+            debt.setUpdatedAt(clock.instant());
+        });
+        if (!openDebts.isEmpty()) {
+            debts.saveAll(openDebts);
+        }
+        return saved;
     }
 
     public DebtInterestConfig interestConfig(UUID partnerId) {
         return interestConfigs.findByPartnerId(partnerId)
                 .orElseThrow(() -> new BusinessException("Interest configuration not found",
                         HttpStatus.NOT_FOUND));
+    }
+
+    public List<DebtInterestConfig> interestConfigs() {
+        return interestConfigs.findAll();
     }
 
     @Transactional

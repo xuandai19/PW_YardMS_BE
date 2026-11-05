@@ -1,4 +1,5 @@
 # Architecture Guidelines
+## Quy tắc kiến trúc và phân chia domain
 
 ## Baseline
 The backend is organized around business domains. Preserve existing domain boundaries and package conventions in yms-service, with genuinely shared code in common.

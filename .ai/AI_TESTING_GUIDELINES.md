@@ -1,4 +1,5 @@
 # AI Backend Testing Guidelines
+##	Checklist kiểm thử 10 domain và tiêu chuẩn viết test
 
 > **Purpose:** This document is the mandatory testing standard for AI agents and developers working on this backend. Read it before creating, modifying, or refactoring backend code. Use it to derive tests for the exact domain and behavior being changed.
 >

@@ -153,6 +153,8 @@ class Sprint3OperationsIntegrationTest {
         Trip trip = new Trip();
         trip.setId(UUID.randomUUID());
         trip.setVehicleId(vehicle.getId());
+        trip.setTripCode("S3-TRIP-" + UUID.randomUUID());
+        trip.setTripName("Sprint 3 test trip");
         trip.setOrigin("Origin");
         trip.setDestination("Destination");
         trip.setPlannedAt(Instant.now());

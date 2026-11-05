@@ -1,4 +1,5 @@
 # AI Instructions — PW_YardMS_BE
+## Quy tắc chung AI phải tuân thủ
 
 Before changing code, read this file and the relevant documents under .ai/.
 

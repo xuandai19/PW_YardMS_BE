@@ -1,4 +1,5 @@
 # Database Guidelines
+## Quy chuẩn Entity, Repository, Migration, Transaction
 
 - Inspect entities, repositories, Flyway migrations and database conventions before persistence changes.
 - Follow the configured database and declared dependency versions.

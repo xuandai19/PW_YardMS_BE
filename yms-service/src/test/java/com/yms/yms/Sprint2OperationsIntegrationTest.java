@@ -67,7 +67,8 @@ class Sprint2OperationsIntegrationTest {
 
         Instant arrival = Instant.now().plusSeconds(5 * 60 * 60);
         String registrationRequest = objectMapper.writeValueAsString(new RegistrationPayload(
-                savedPartner.getId(), " 51c 12345 ", arrival, "Test Driver", List.of(savedService.getId())));
+                savedPartner.getId(), " 51c 12345 ", arrival, "Test Driver", "", "Test Carrier", "Truck",
+                "Cảng Cát Lái, TP. Thủ Đức", null, null, yardId, List.of(savedService.getId())));
         String registrationJson = mockMvc.perform(post("/api/vehicles/pre-notifications")
                         .contentType(MediaType.APPLICATION_JSON).content(registrationRequest))
                 .andExpect(status().isOk())
@@ -147,7 +148,8 @@ class Sprint2OperationsIntegrationTest {
         String secondRegistrationJson = mockMvc.perform(post("/api/vehicles/pre-notifications")
                         .contentType(MediaType.APPLICATION_JSON)
                         .content(objectMapper.writeValueAsString(new RegistrationPayload(savedPartner.getId(),
-                                "60A55555", secondArrival, "Second Driver", List.of()))))
+                                "60A55555", secondArrival, "Second Driver", "", "Test Carrier", "Truck",
+                                "ICD Sóng Thần, Dĩ An", null, null, yardId, List.of()))))
                 .andExpect(status().isOk())
                 .andReturn().getResponse().getContentAsString();
         String secondNotificationId = objectMapper.readTree(secondRegistrationJson).path("data").path("id").asText();
@@ -180,7 +182,9 @@ class Sprint2OperationsIntegrationTest {
     }
 
     private record RegistrationPayload(UUID partnerAId, String plateNumber, Instant plannedArrival,
-                                       String driverName, java.util.List<UUID> serviceIds) {
+                                       String driverName, String driverPhone, String carrierCompany,
+                                       String vehicleType, String startAddress, Double originLatitude,
+                                       Double originLongitude, UUID targetYardId, java.util.List<UUID> serviceIds) {
     }
 
     private record ScanPayload(String token) {

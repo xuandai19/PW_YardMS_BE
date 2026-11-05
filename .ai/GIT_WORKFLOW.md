@@ -1,4 +1,5 @@
 # Git Workflow
+## 	Quy trình Git và Commit
 
 ## Before changes
 - Check the current branch and working tree.

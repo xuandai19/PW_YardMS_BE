@@ -1,4 +1,5 @@
 # Security Guidelines
+## 	JWT, Authentication, Authorization, RBAC
 
 - Inspect the actual Spring Security configuration, JWT implementation, filters and authorization rules before changes.
 - Enforce authentication and authorization on the backend for every protected endpoint.

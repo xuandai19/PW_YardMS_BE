@@ -467,3 +467,19 @@ When generating or modifying backend code in this repository:
 - Add regression tests for every fixed bug where practical.
 - Prefer adding a reusable test helper when the same setup/assertion is repeated across multiple domains.
 - Keep this document technology-aware but avoid hard-coding assumptions that may become stale.
+
+
+---
+
+## 10. Workflow and test-case catalog integration
+
+This testing standard is part of the repository-wide AI workflow:
+
+- Read `.ai/AI_CODE_GENERATION_WORKFLOW.md` before generating or changing backend code.
+- Use `.ai/TEST_CASE_CATALOG.md` to select candidate test cases for the affected domain.
+- Map each changed acceptance criterion to one or more test-case IDs and automated test methods.
+- Extend the catalog when a new requirement, regression scenario, security boundary or domain behavior is introduced.
+- A catalog row marked Planned is not evidence that an automated test exists or passed.
+- Update test implementation, traceability and documentation together when a requirement changes.
+
+The catalog is a starting point, not a source of unapproved business rules. Verify each candidate against approved requirements and the current implementation before asserting a specific expected status, field limit, role or state transition.

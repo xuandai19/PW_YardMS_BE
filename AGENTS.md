@@ -1,6 +1,8 @@
 # Repository Instructions for AI Agents
 
-Before making changes, read .ai/AI_INSTRUCTIONS.md.
+Before making changes, read .ai/AI_INSTRUCTIONS.md and follow .ai/AI_CODE_GENERATION_WORKFLOW.md.
+
+For test design and traceability, use .ai/TEST_CASE_CATALOG.md together with .ai/AI_TESTING_GUIDELINES.md.
 
 Then read the relevant documents:
 - .ai/AI_TESTING_GUIDELINES.md

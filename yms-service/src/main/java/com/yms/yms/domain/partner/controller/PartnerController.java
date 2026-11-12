@@ -33,7 +33,7 @@ public class PartnerController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PARTNER_WRITE')")
     public ApiResponse<PartnerView> create(@Valid @RequestBody CreatePartnerRequest request) {
         Partner partner = new Partner();
         partner.setCode(request.code());
@@ -50,7 +50,7 @@ public class PartnerController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PARTNER_WRITE')")
     public ApiResponse<PartnerView> update(@PathVariable UUID id, @RequestBody UpdatePartnerRequest request) {
         Partner incoming = new Partner();
         incoming.setName(request.name());
@@ -72,7 +72,7 @@ public class PartnerController {
     }
 
     @PostMapping("/{partnerAId}/relationships/{partnerCId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('PARTNER_WRITE')")
     public ApiResponse<PartnerView> link(@PathVariable UUID partnerAId, @PathVariable UUID partnerCId) {
         return ApiResponse.ok(PartnerView.from(partnerService.linkRelationship(partnerAId, partnerCId)));
     }

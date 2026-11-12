@@ -42,19 +42,19 @@ public class YardController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('YARD_WRITE')")
     public ApiResponse<Yard> create(@Valid @RequestBody YardRequest request) {
         return ApiResponse.ok(yardService.create(toEntity(request)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('YARD_WRITE')")
     public ApiResponse<Yard> update(@PathVariable UUID id, @Valid @RequestBody YardRequest request) {
         return ApiResponse.ok(yardService.update(id, toEntity(request)));
     }
 
     @DeleteMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('YARD_WRITE')")
     public ApiResponse<Void> deactivate(@PathVariable UUID id) {
         yardService.deactivate(id);
         return ApiResponse.ok(null);

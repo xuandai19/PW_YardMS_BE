@@ -66,13 +66,19 @@ public class FinanceController {
     }
 
     @GetMapping("/interest-config/{partnerId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<DebtInterestConfig> interestConfig(@PathVariable UUID partnerId) {
         return ApiResponse.ok(financeService.interestConfig(partnerId));
     }
 
+    @GetMapping("/interest-configs")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
+    public ApiResponse<List<DebtInterestConfig>> interestConfigs() {
+        return ApiResponse.ok(financeService.interestConfigs());
+    }
+
     @PutMapping("/interest-config/{partnerId}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<DebtInterestConfig> configureInterest(@PathVariable UUID partnerId,
             @Valid @RequestBody InterestConfigRequest request) {
         return ApiResponse.ok(financeService.saveInterestConfig(partnerId, request.ratePerDayPercent(),
@@ -93,7 +99,7 @@ public class FinanceController {
     }
 
     @GetMapping("/issueable-orders")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<List<FinanceService.IssueableOrder>> issueableOrders(
             @RequestParam UUID partnerId, @RequestParam(required = false) UUID contractId) {
         return ApiResponse.ok(financeService.issueableOrders(partnerId, contractId));
@@ -110,13 +116,13 @@ public class FinanceController {
     }
 
     @PostMapping("/invoices/{id}/e-invoice")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<Invoice> submitEInvoice(@PathVariable UUID id) {
         return ApiResponse.ok(financeService.submitEInvoice(id));
     }
 
     @PostMapping("/invoices")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<Invoice> issueInvoice(@Valid @RequestBody InvoiceRequest request) {
         return ApiResponse.ok(financeService.issueInvoice(
                 new FinanceService.IssueInvoiceRequest(request.partnerId(), request.contractId(), request.serviceOrderIds(),
@@ -157,7 +163,7 @@ public class FinanceController {
     }
 
     @GetMapping("/reconcile")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<FinanceService.Reconciliation> reconcile(@RequestParam UUID partnerAId,
             @RequestParam UUID partnerCId,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE) LocalDate from,

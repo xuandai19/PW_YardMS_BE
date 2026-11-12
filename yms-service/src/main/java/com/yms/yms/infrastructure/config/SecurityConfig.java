@@ -42,7 +42,7 @@ public class SecurityConfig {
                     }
                     String required = requiredPermission(context.getRequest().getMethod(),
                             context.getRequest().getRequestURI());
-                    return new AuthorizationDecision(required == null || authorities.contains(required));
+                    return new AuthorizationDecision(hasRequiredPermission(authorities, required));
                 };
         http
                 .csrf(csrf -> csrf.disable())
@@ -61,13 +61,14 @@ public class SecurityConfig {
                                 "/v3/api-docs/**",
                                 "/api/yard-logs/qr-info"
                         ).permitAll()
+                        .requestMatchers("/api/auth/me", "/api/auth/logout").authenticated()
                         .anyRequest().access(modulePermissionAccess)
                 )
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class);
         return http.build();
     }
 
-    private static String requiredPermission(String method, String path) {
+    static String requiredPermission(String method, String path) {
         boolean read = "GET".equalsIgnoreCase(method) || "HEAD".equalsIgnoreCase(method);
         if (path.startsWith("/api/users") || path.startsWith("/api/rbac")) return read ? "USER_READ" : "USER_WRITE";
         if (path.startsWith("/api/roles")) return "USER_READ";
@@ -86,12 +87,23 @@ public class SecurityConfig {
             return read ? "FINANCE_READ" : "FINANCE_WRITE";
         }
         if (path.startsWith("/api/reports")) {
-            if (path.contains("/schedules") && !read) return "REPORT_WRITE";
+            if (path.contains("/schedules")) return "REPORT_WRITE";
             return read ? "REPORT_READ" : "REPORT_WRITE";
         }
         if (path.startsWith("/api/goods")) return read ? "GOODS_READ" : "GOODS_WRITE";
         if (path.startsWith("/api/confirmations")) return read ? "CONFIRMATION_READ" : "CONFIRMATION_WRITE";
         return null;
+    }
+
+    static boolean hasRequiredPermission(Set<String> authorities, String required) {
+        if (required == null) return false;
+        if (authorities.contains(required)) return true;
+        if (required.endsWith("_READ")) {
+            String writePermission = required.substring(0, required.length() - "_READ".length()) + "_WRITE";
+            if (authorities.contains(writePermission)) return true;
+        }
+        return "PARTNER_READ".equals(required)
+                && (authorities.contains("FINANCE_READ") || authorities.contains("FINANCE_WRITE"));
     }
 
     @Bean

@@ -70,19 +70,19 @@ public class ReportController {
     }
 
     @GetMapping("/schedules")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('REPORT_WRITE')")
     public ApiResponse<java.util.List<ReportSchedule>> schedules() {
         return ApiResponse.ok(deliveryService.listSchedules());
     }
 
     @PostMapping("/schedules")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('REPORT_WRITE')")
     public ApiResponse<ReportSchedule> createSchedule(@Valid @RequestBody ScheduleRequest request) {
         return ApiResponse.ok(deliveryService.createSchedule(request.reportType(), request.recipientEmail()));
     }
 
     @DeleteMapping("/schedules/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('REPORT_WRITE')")
     public ApiResponse<Void> deleteSchedule(@PathVariable java.util.UUID id) {
         deliveryService.deleteSchedule(id);
         return ApiResponse.ok(null);

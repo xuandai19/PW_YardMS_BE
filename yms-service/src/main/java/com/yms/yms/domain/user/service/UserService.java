@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.HashSet;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -74,7 +75,7 @@ public class UserService {
         if (isAdmin(user.getRoles())) {
             user.getPermissionOverrides().clear();
         } else if (effectivePermissionCodes != null) {
-            user.setPermissionOverrides(resolveOverrides(user, effectivePermissionCodes, user.getRoles()));
+            updateOverrides(user, effectivePermissionCodes, user.getRoles());
         }
         if (rawPassword != null && !rawPassword.isBlank()) {
             user.setPasswordHash(passwordEncoder.encode(rawPassword));
@@ -121,6 +122,24 @@ public class UserService {
             }
         }
         return overrides;
+    }
+
+    private void updateOverrides(User user, Set<String> effectiveCodes, Set<Role> roles) {
+        Set<UserPermission> desired = resolveOverrides(user, effectiveCodes, roles);
+        Map<String, UserPermission> desiredByCode = desired.stream()
+                .collect(Collectors.toMap(override -> override.getPermission().getCode(), override -> override));
+        Map<String, UserPermission> existingByCode = user.getPermissionOverrides().stream()
+                .collect(Collectors.toMap(override -> override.getPermission().getCode(), override -> override));
+
+        user.getPermissionOverrides().removeIf(override -> !desiredByCode.containsKey(override.getPermission().getCode()));
+        for (Map.Entry<String, UserPermission> entry : desiredByCode.entrySet()) {
+            UserPermission existing = existingByCode.get(entry.getKey());
+            if (existing == null) {
+                user.getPermissionOverrides().add(entry.getValue());
+            } else {
+                existing.setEffect(entry.getValue().getEffect());
+            }
+        }
     }
 
     private boolean isAdmin(Set<Role> roles) {

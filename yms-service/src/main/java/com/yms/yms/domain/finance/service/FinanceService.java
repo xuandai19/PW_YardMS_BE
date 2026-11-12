@@ -392,6 +392,10 @@ public class FinanceService {
                         HttpStatus.NOT_FOUND));
     }
 
+    public List<DebtInterestConfig> interestConfigs() {
+        return interestConfigs.findAll();
+    }
+
     @Transactional
     public int markOverdue(LocalDate asOfDate) {
         List<Invoice> due = invoices.findByStatusAndDueDateBefore("UNPAID", asOfDate);

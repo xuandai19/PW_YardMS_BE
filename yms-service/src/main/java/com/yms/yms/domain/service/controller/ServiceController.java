@@ -41,13 +41,13 @@ public class ServiceController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('SERVICE_WRITE')")
     public ApiResponse<ServiceEntity> create(@Valid @RequestBody ServiceRequest request) {
         return ApiResponse.ok(serviceCatalogService.create(toEntity(request)));
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('SERVICE_WRITE')")
     public ApiResponse<ServiceEntity> update(@PathVariable UUID id, @Valid @RequestBody ServiceRequest request) {
         return ApiResponse.ok(serviceCatalogService.update(id, toEntity(request), null));
     }

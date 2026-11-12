@@ -41,7 +41,7 @@ public class ContractController {
     }
 
     @PostMapping
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('CONTRACT_WRITE')")
     public ApiResponse<Contract> create(@Valid @RequestBody CreateContractRequest request) {
         Contract contract = new Contract();
         contract.setContractNo(request.contractNo());
@@ -57,7 +57,7 @@ public class ContractController {
     }
 
     @PutMapping("/{id}")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('CONTRACT_WRITE')")
     public ApiResponse<Contract> update(@PathVariable UUID id, @Valid @RequestBody CreateContractRequest request) {
         Contract contract = new Contract();
         contract.setContractType(request.contractType());

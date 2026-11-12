@@ -23,7 +23,7 @@ public class ContractUploadController {
     }
 
     @PostMapping("/{id}/upload")
-    @PreAuthorize("hasAnyRole('ADMIN','MANAGER')")
+    @PreAuthorize("hasRole('ADMIN') or hasAuthority('CONTRACT_WRITE')")
     public ApiResponse<Contract> upload(@PathVariable UUID id, @RequestParam("file") MultipartFile file) {
         String url = storageService.store(id, file);
         return ApiResponse.ok(contractService.attachFile(id, url));

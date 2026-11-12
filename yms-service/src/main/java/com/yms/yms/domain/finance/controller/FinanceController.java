@@ -57,6 +57,9 @@ public class FinanceController {
     @GetMapping("/debts")
     public ApiResponse<List<Debt>> debts(@RequestParam(required = false) UUID partnerId,
             @RequestParam(required = false) String status) {
+        // Refresh today's overdue interest before returning balances, so the displayed
+        // amount due never waits for the nightly scheduler.
+        interestService.accrue(LocalDate.now(clock));
         return ApiResponse.ok(financeService.debts(partnerId, status));
     }
 
@@ -72,6 +75,7 @@ public class FinanceController {
     }
 
     @GetMapping("/interest-configs")
+
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<List<DebtInterestConfig>> interestConfigs() {
         return ApiResponse.ok(financeService.interestConfigs());
@@ -81,8 +85,12 @@ public class FinanceController {
     @PreAuthorize("hasRole('ADMIN') or hasAuthority('FINANCE_WRITE')")
     public ApiResponse<DebtInterestConfig> configureInterest(@PathVariable UUID partnerId,
             @Valid @RequestBody InterestConfigRequest request) {
-        return ApiResponse.ok(financeService.saveInterestConfig(partnerId, request.ratePerDayPercent(),
-                request.graceDays(), request.active()));
+        DebtInterestConfig config = financeService.saveInterestConfig(partnerId, request.ratePerDayPercent(),
+                request.graceDays(), request.active());
+        // Apply the newly saved rate to every already-overdue debt of this partner
+        // today; each debt can only receive one entry per date.
+        interestService.accrueForPartner(partnerId, LocalDate.now(clock));
+        return ApiResponse.ok(config);
     }
 
     @PostMapping("/interest/accrue")
@@ -155,7 +163,7 @@ public class FinanceController {
 
     @PostMapping(value = "/invoices/{id}/payments", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ApiResponse<Payment> recordPayment(@PathVariable UUID id,
-            @RequestParam @DecimalMin(value = "0.0001") BigDecimal amount,
+            @RequestParam(required = false) @DecimalMin(value = "0.0001") BigDecimal amount,
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) Instant paidAt,
             @RequestParam(required = false) String referenceNo, @RequestParam(required = false) String note,
             @RequestPart(required = false) MultipartFile proof) {

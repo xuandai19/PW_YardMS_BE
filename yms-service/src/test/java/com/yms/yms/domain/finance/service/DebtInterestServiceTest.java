@@ -51,4 +51,41 @@ class DebtInterestServiceTest {
         assertEquals(new BigDecimal("75.0000"), debt.getInterestAccrued());
         verify(entries, times(1)).save(org.mockito.ArgumentMatchers.any());
     }
+
+    @Test
+    void appliesThePartnerRateToEveryOpenDebtForThatPartner() throws Exception {
+        DebtRepository debts = mock(DebtRepository.class);
+        DebtInterestConfigRepository configs = mock(DebtInterestConfigRepository.class);
+        DebtInterestEntryRepository entries = mock(DebtInterestEntryRepository.class);
+        KieBase kieBase = new DroolsConfig().debtInterestKieBase();
+        UUID partnerId = UUID.randomUUID();
+        Debt first = overdueDebt(partnerId, new BigDecimal("1000.0000"));
+        Debt second = overdueDebt(partnerId, new BigDecimal("2000.0000"));
+        DebtInterestConfig config = new DebtInterestConfig();
+        config.setActive(true);
+        config.setGraceDays(0);
+        config.setRatePerDayPercent(new BigDecimal("1.00000"));
+        when(debts.findByPartnerIdOrderByDueDateAsc(partnerId)).thenReturn(List.of(first, second));
+        when(configs.findByPartnerId(partnerId)).thenReturn(Optional.of(config));
+        DebtInterestService interestService = new DebtInterestService(debts, configs, entries, kieBase,
+                Clock.fixed(Instant.parse("2026-05-10T12:00:00Z"), ZoneOffset.UTC));
+
+        assertEquals(2, interestService.accrueForPartner(partnerId, LocalDate.of(2026, 5, 10)));
+        assertEquals(new BigDecimal("10.0000"), first.getInterestAccrued());
+        assertEquals(new BigDecimal("20.0000"), second.getInterestAccrued());
+        verify(entries, times(2)).save(org.mockito.ArgumentMatchers.any());
+    }
+
+    private Debt overdueDebt(UUID partnerId, BigDecimal principal) {
+        Debt debt = new Debt();
+        debt.setId(UUID.randomUUID());
+        debt.setPartnerId(partnerId);
+        debt.setPrincipalAmount(principal);
+        debt.setPaidAmount(BigDecimal.ZERO);
+        debt.setInterestAccrued(BigDecimal.ZERO);
+        debt.setInterestPaid(BigDecimal.ZERO);
+        debt.setDueDate(LocalDate.of(2026, 5, 8));
+        debt.setStatus("OPEN");
+        return debt;
+    }
 }

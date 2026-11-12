@@ -1,9 +1,11 @@
 package com.yms.yms.domain.finance.entity;
 
+import com.fasterxml.jackson.annotation.JsonProperty;
 import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
+import jakarta.persistence.Transient;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
@@ -54,4 +56,29 @@ public class Debt {
 
     @Column(name = "updated_at", nullable = false)
     private Instant updatedAt;
+
+    /** Amount of the invoice principal which has not yet been paid. */
+    @Transient
+    @JsonProperty("outstandingPrincipal")
+    public BigDecimal getOutstandingPrincipal() {
+        return value(principalAmount).subtract(value(paidAmount)).max(BigDecimal.ZERO).setScale(4, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** Interest that has been charged but has not yet been paid. */
+    @Transient
+    @JsonProperty("outstandingInterest")
+    public BigDecimal getOutstandingInterest() {
+        return value(interestAccrued).subtract(value(interestPaid)).max(BigDecimal.ZERO).setScale(4, java.math.RoundingMode.HALF_UP);
+    }
+
+    /** The exact amount required to settle this debt at the time it is read. */
+    @Transient
+    @JsonProperty("amountDue")
+    public BigDecimal getAmountDue() {
+        return getOutstandingPrincipal().add(getOutstandingInterest()).setScale(4, java.math.RoundingMode.HALF_UP);
+    }
+
+    private BigDecimal value(BigDecimal amount) {
+        return amount == null ? BigDecimal.ZERO : amount;
+    }
 }

@@ -6,6 +6,8 @@ import com.yms.yms.domain.partner.entity.Partner;
 import com.yms.yms.domain.partner.repository.PartnerRepository;
 import com.yms.yms.domain.service.entity.ServiceEntity;
 import com.yms.yms.domain.service.repository.ServiceRepository;
+import com.yms.yms.domain.service.entity.YardServiceWorker;
+import com.yms.yms.domain.service.repository.YardServiceWorkerRepository;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
@@ -38,6 +40,7 @@ class Sprint2OperationsIntegrationTest {
     @Autowired ObjectMapper objectMapper;
     @Autowired PartnerRepository partnerRepository;
     @Autowired ServiceRepository serviceRepository;
+    @Autowired YardServiceWorkerRepository workerRepository;
 
     @Test
     void completesRegistrationQrGateServiceAndYardFlow() throws Exception {
@@ -105,6 +108,20 @@ class Sprint2OperationsIntegrationTest {
         mockMvc.perform(get("/api/vehicles/pre-notifications/in-yard"))
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.length()").value(1));
+        YardServiceWorker worker = new YardServiceWorker();
+        worker.setId(UUID.randomUUID());
+        worker.setYardId(yardId);
+        worker.setServiceType(savedService.getServiceType());
+        worker.setWorkerName("Test mechanic");
+        worker.setActive(true);
+        workerRepository.save(worker);
+        mockMvc.perform(get("/api/service-orders/availability")
+                        .param("vehicleId", vehicleId)
+                        .param("serviceId", savedService.getId().toString()))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.workerCount").value(1))
+                .andExpect(jsonPath("$.data.availableCount").value(1))
+                .andExpect(jsonPath("$.data.workers[0].available").value(true));
         mockMvc.perform(post("/api/yards/{yardId}/assignments", yardId)
                         .contentType(MediaType.APPLICATION_JSON).content(objectMapper.writeValueAsString(new ScanPayload(qrToken))))
                 .andExpect(status().isGone());
@@ -174,7 +191,10 @@ class Sprint2OperationsIntegrationTest {
 
         mockMvc.perform(get("/api/yard-logs"))
                 .andExpect(status().isOk())
-                .andExpect(jsonPath("$.data.length()").value(2));
+                .andExpect(jsonPath("$.data.length()").value(2))
+                .andExpect(jsonPath("$.data[0].partnerAId").value(savedPartner.getId().toString()))
+                .andExpect(jsonPath("$.data[0].partnerACode").value(savedPartner.getCode()))
+                .andExpect(jsonPath("$.data[0].partnerAName").value(savedPartner.getName()));
 
         mockMvc.perform(post("/api/vehicles/pre-notifications")
                         .contentType(MediaType.APPLICATION_JSON).content(registrationRequest))

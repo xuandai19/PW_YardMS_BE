@@ -50,6 +50,7 @@ class SecurityConfigPermissionTest {
         assertPermission("GET", "/api/yards", "YARD_READ");
         assertPermission("PUT", "/api/yards/1", "YARD_WRITE");
         assertPermission("GET", "/api/trips", "TRACKING_READ");
+        assertPermission("PATCH", "/api/trips/1/coordinates", "TRACKING_WRITE");
         assertPermission("POST", "/api/tracking", "TRACKING_WRITE");
         assertPermission("GET", "/api/finance/debts", "FINANCE_READ");
         assertPermission("POST", "/api/finance/invoices", "FINANCE_WRITE");

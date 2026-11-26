@@ -1,6 +1,7 @@
 package com.yms.yms.domain.finance.service;
 
 import com.yms.yms.domain.finance.entity.Debt;
+import com.yms.yms.domain.finance.entity.DebtInterestConfig;
 import com.yms.yms.domain.finance.repository.DebtInterestConfigRepository;
 import com.yms.yms.domain.finance.repository.DebtInterestEntryRepository;
 import com.yms.yms.domain.finance.repository.DebtRepository;
@@ -25,7 +26,7 @@ import static org.mockito.Mockito.when;
 
 class DebtInterestServiceTest {
     @Test
-    void accruesDailyInterestOncePerDebtAndDate() throws Exception {
+    void catchesUpMissedDailyInterestAndAccruesOncePerDebtAndDate() throws Exception {
         DebtRepository debts = mock(DebtRepository.class);
         DebtInterestConfigRepository configs = mock(DebtInterestConfigRepository.class);
         DebtInterestEntryRepository entries = mock(DebtInterestEntryRepository.class);
@@ -41,15 +42,17 @@ class DebtInterestServiceTest {
         debt.setInterestPaid(BigDecimal.ZERO);
         when(debts.findByStatusOrderByDueDateAsc("OPEN")).thenReturn(List.of(debt));
         when(configs.findByPartnerId(debt.getPartnerId())).thenReturn(Optional.empty());
+        when(entries.existsByDebtIdAndAccrualDate(debt.getId(), LocalDate.of(2026, 5, 9)))
+                .thenReturn(false, true);
         when(entries.existsByDebtIdAndAccrualDate(debt.getId(), LocalDate.of(2026, 5, 10)))
                 .thenReturn(false, true);
         DebtInterestService interestService = new DebtInterestService(debts, configs, entries, kieBase,
                 Clock.fixed(Instant.parse("2026-05-10T12:00:00Z"), ZoneOffset.UTC));
 
-        assertEquals(1, interestService.accrue(LocalDate.of(2026, 5, 10)));
+        assertEquals(2, interestService.accrue(LocalDate.of(2026, 5, 10)));
         assertEquals(0, interestService.accrue(LocalDate.of(2026, 5, 10)));
-        assertEquals(new BigDecimal("75.0000"), debt.getInterestAccrued());
-        verify(entries, times(1)).save(org.mockito.ArgumentMatchers.any());
+        assertEquals(new BigDecimal("150.0000"), debt.getInterestAccrued());
+        verify(entries, times(2)).save(org.mockito.ArgumentMatchers.any());
     }
 
     @Test
@@ -70,7 +73,7 @@ class DebtInterestServiceTest {
         DebtInterestService interestService = new DebtInterestService(debts, configs, entries, kieBase,
                 Clock.fixed(Instant.parse("2026-05-10T12:00:00Z"), ZoneOffset.UTC));
 
-        assertEquals(2, interestService.accrueForPartner(partnerId, LocalDate.of(2026, 5, 10)));
+        assertEquals(2, interestService.accrueForPartner(partnerId, LocalDate.of(2026, 5, 9)));
         assertEquals(new BigDecimal("10.0000"), first.getInterestAccrued());
         assertEquals(new BigDecimal("20.0000"), second.getInterestAccrued());
         verify(entries, times(2)).save(org.mockito.ArgumentMatchers.any());

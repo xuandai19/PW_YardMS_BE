@@ -6,7 +6,7 @@ This is the backend service for the Yard Management System (YMS). It provides th
 
 ## 🛠 Technology Stack
 
-- **Language & Framework**: Java 25 (LTS), Spring Boot `3.5.x`
+- **Language & Framework**: Java 21 (LTS), Spring Boot `3.5.x`
 - **Security & Auth**: Spring Security, JWT, BCrypt, RBAC
 - **Persistence & Migration**: Spring Data JPA, Hibernate, Flyway
 - **Business Rules Engine**: Drools (daily interest calculation)

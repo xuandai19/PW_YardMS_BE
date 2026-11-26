@@ -1,6 +1,8 @@
 package com.yms.yms.domain.yard.service;
 
 import com.yms.common.exception.BusinessException;
+import com.yms.yms.domain.partner.entity.Partner;
+import com.yms.yms.domain.partner.repository.PartnerRepository;
 import com.yms.yms.domain.vehicle.entity.PreNotification;
 import com.yms.yms.domain.vehicle.entity.Trip;
 import com.yms.yms.domain.vehicle.entity.Vehicle;
@@ -28,6 +30,7 @@ public class YardOperationsService {
     private final PreNotificationRepository notificationRepository;
     private final YardLogRepository yardLogRepository;
     private final YardRepository yardRepository;
+    private final PartnerRepository partnerRepository;
     private final VehicleRepository vehicleRepository;
     private final TripRepository tripRepository;
     private final YardManagementService yardManagementService;
@@ -37,6 +40,7 @@ public class YardOperationsService {
                                  PreNotificationRepository notificationRepository,
                                  YardLogRepository yardLogRepository,
                                  YardRepository yardRepository,
+                                 PartnerRepository partnerRepository,
                                  VehicleRepository vehicleRepository,
                                  TripRepository tripRepository,
                                  YardManagementService yardManagementService,
@@ -45,6 +49,7 @@ public class YardOperationsService {
         this.notificationRepository = notificationRepository;
         this.yardLogRepository = yardLogRepository;
         this.yardRepository = yardRepository;
+        this.partnerRepository = partnerRepository;
         this.vehicleRepository = vehicleRepository;
         this.tripRepository = tripRepository;
         this.yardManagementService = yardManagementService;
@@ -151,11 +156,14 @@ public class YardOperationsService {
                 .map(log -> {
                     PreNotification notification = notificationRepository.findById(log.getPreNotificationId())
                             .orElseThrow(() -> new BusinessException("Pre-notification not found", HttpStatus.NOT_FOUND));
+                    Partner partner = partnerRepository.findById(notification.getPartnerAId())
+                            .orElseThrow(() -> new BusinessException("Partner A not found", HttpStatus.NOT_FOUND));
                     var yard = yardRepository.findById(log.getYardId())
                             .orElseThrow(() -> new BusinessException("Yard not found", HttpStatus.NOT_FOUND));
                     return new YardHistoryEntry(log.getId(), log.getPreNotificationId(), notification.getPlateNumber(),
-                            notification.getDriverName(), yard.getId(), yard.getCode(), yard.getName(), log.getCheckInAt(),
-                            log.getCheckOutAt(), log.getDurationSeconds());
+                            notification.getDriverName(), notification.getVehicleType(), notification.getCarrierCompany(),
+                            partner.getId(), partner.getCode(), partner.getName(), yard.getId(), yard.getCode(),
+                            yard.getName(), log.getCheckInAt(), log.getCheckOutAt(), log.getDurationSeconds());
                 })
                 .toList();
     }
@@ -173,7 +181,8 @@ public class YardOperationsService {
     }
 
     public record YardHistoryEntry(UUID id, UUID preNotificationId, String plateNumber, String driverName,
-                                   UUID yardId, String yardCode, String yardName, Instant checkInAt,
-                                   Instant checkOutAt, Long durationSeconds) {
+                                   String vehicleType, String carrierCompany, UUID partnerAId, String partnerACode,
+                                   String partnerAName, UUID yardId, String yardCode, String yardName,
+                                   Instant checkInAt, Instant checkOutAt, Long durationSeconds) {
     }
 }

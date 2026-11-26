@@ -1,8 +1,18 @@
+# Maven build
 target/
 **/target/
+
+# Java
 *.class
 *.jar
 *.war
+
+# IDE
 .idea/
 .vscode/
+
+# Environment
 .env
+
+# YMS data
+yms-service/data/

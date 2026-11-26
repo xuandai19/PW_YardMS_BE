@@ -9,7 +9,6 @@ import com.yms.yms.domain.finance.repository.DebtRepository;
 import org.kie.api.KieBase;
 import jakarta.transaction.Transactional;
 import org.kie.api.runtime.KieSession;
-import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
 
 import java.math.BigDecimal;
@@ -82,36 +81,32 @@ public class DebtInterestService {
                 continue;
             }
             int graceDays = config == null ? 0 : config.getGraceDays();
-            if (!accrualDate.isAfter(debt.getDueDate().plusDays(graceDays))
-                    || entries.existsByDebtIdAndAccrualDate(debt.getId(), accrualDate)) {
-                continue;
-            }
             BigDecimal rate = config == null ? debt.getInterestRatePerDay() : config.getRatePerDayPercent();
             if (rate.signum() == 0) {
                 continue;
             }
-            BigDecimal interest = calculate(principal, rate);
-            DebtInterestEntry entry = new DebtInterestEntry();
-            entry.setId(UUID.randomUUID());
-            entry.setDebtId(debt.getId());
-            entry.setAccrualDate(accrualDate);
-            entry.setOutstandingPrincipal(principal);
-            entry.setRatePerDayPercent(rate);
-            entry.setAmount(interest);
-            entry.setCreatedAt(clock.instant());
-            entries.save(entry);
-            debt.setInterestAccrued(debt.getInterestAccrued().add(interest).setScale(4, RoundingMode.HALF_UP));
-            debt.setUpdatedAt(clock.instant());
-            debts.save(debt);
-            count++;
+            LocalDate firstAccrualDate = debt.getDueDate().plusDays((long) graceDays + 1);
+            for (LocalDate date = firstAccrualDate; !date.isAfter(accrualDate); date = date.plusDays(1)) {
+                if (entries.existsByDebtIdAndAccrualDate(debt.getId(), date)) {
+                    continue;
+                }
+                BigDecimal interest = calculate(principal, rate);
+                DebtInterestEntry entry = new DebtInterestEntry();
+                entry.setId(UUID.randomUUID());
+                entry.setDebtId(debt.getId());
+                entry.setAccrualDate(date);
+                entry.setOutstandingPrincipal(principal);
+                entry.setRatePerDayPercent(rate);
+                entry.setAmount(interest);
+                entry.setCreatedAt(clock.instant());
+                entries.save(entry);
+                debt.setInterestAccrued(debt.getInterestAccrued().add(interest).setScale(4, RoundingMode.HALF_UP));
+                debt.setUpdatedAt(clock.instant());
+                debts.save(debt);
+                count++;
+            }
         }
         return count;
-    }
-
-    @Transactional
-    @Scheduled(cron = "${yms.finance.interest-cron:0 5 0 * * *}", zone = "${yms.finance.time-zone:Asia/Ho_Chi_Minh}")
-    public void accrueDaily() {
-        accrue(LocalDate.now(clock));
     }
 
     public List<DebtInterestEntry> history(UUID debtId) {

@@ -57,9 +57,6 @@ public class FinanceController {
     @GetMapping("/debts")
     public ApiResponse<List<Debt>> debts(@RequestParam(required = false) UUID partnerId,
             @RequestParam(required = false) String status) {
-        // Refresh today's overdue interest before returning balances, so the displayed
-        // amount due never waits for the nightly scheduler.
-        interestService.accrue(LocalDate.now(clock));
         return ApiResponse.ok(financeService.debts(partnerId, status));
     }
 
